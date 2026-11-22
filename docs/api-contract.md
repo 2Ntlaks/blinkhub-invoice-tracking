@@ -272,3 +272,35 @@ Seeded legacy events use actor `{ "id": 0, "name": "System import", "role": "SYS
 - `attention` = open invoices that are overdue **or** have an open flag, sorted by
   `days_outstanding` desc, SMMEs first on ties (SMME cash flow is the brief's key story).
 - `avg_payment_turnaround_days` = mean `days_outstanding` over `PAID` invoices.
+
+---
+
+## 6. Running, config and seed data
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `DATABASE_URL` | `sqlite:///./blinkhub.db` | Any SQLAlchemy URL. Docker Compose sets a PostgreSQL URL. |
+| `SEED_ON_STARTUP` | `true` | On startup, if the database has no suppliers, create tables and load the case-study seed. |
+| `CORS_ORIGINS` | `http://localhost:5173` | Comma-separated. |
+
+- Reset to the exact case-study state: `python -m app.seed --reset` (from `backend/`). This drops and
+  recreates all tables, then seeds. Run it right before the demo so "days outstanding" match the brief.
+- The seed must create flags by running the **same rule functions** used by `POST /api/invoices`,
+  in invoice-number order. Flags are never hard-coded in the seed.
+- E2E tests start the backend with a throwaway SQLite file (`DATABASE_URL=sqlite:///./e2e.db`) and reset it first.
+
+### Seeded users (ids are stable, the frontend role switcher lists them from `GET /api/users`)
+
+| id | name | role | supplier |
+|---|---|---|---|
+| 1 | Thandi Nkosi | FINANCE | - |
+| 2 | Sipho Mokoena | MANAGER | - |
+| 3..10 | "`<Supplier name>` (supplier portal)" | SUPPLIER | suppliers 1..8 in case-study order (Ubuntu Cleaning = supplier 1, user 3; Sisonke Trading = supplier 8, user 10) |
+
+Supplier ids follow the case-study register order: 1 Ubuntu Cleaning, 2 Prime Facilities, 3 Thuto Supplies,
+4 Metro Logistics, 5 Khula Electrical, 6 Rapid Transport, 7 Apex Infrastructure, 8 Sisonke Trading.
+PO ids 1..12 = PO001..PO012. Invoice ids 1..8 = INV001..INV008.
+
+### UI wording rule
+Flags are shown as **"Needs review"** with the rule name in plain words. Never use the words
+"fraud", "suspicious" or "fraudulent" anywhere in the UI or API messages.
