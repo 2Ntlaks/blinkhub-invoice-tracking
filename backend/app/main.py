@@ -20,7 +20,8 @@ from app.models import Base
 from app.routers import catalog, dashboard, flags, invoices, meta
 from app.seed import seed_if_empty
 
-logger = logging.getLogger("blinkhub")
+# uvicorn's own logger, so startup messages appear in the server console without extra setup.
+logger = logging.getLogger("uvicorn.error")
 
 
 def create_app(settings: Settings | None = None, clock: Clock = utc_now) -> FastAPI:
