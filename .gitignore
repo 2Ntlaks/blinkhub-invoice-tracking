@@ -18,3 +18,7 @@ BlinkHub-explainer.mp4
 
 # Personal study material - not part of the submission (has its own git repo)
 explainer-video/
+
+# Playwright output
+test-results/
+playwright-report/
