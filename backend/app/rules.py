@@ -49,6 +49,12 @@ DUE_SOON_FROM_DAYS = 21
 #: still catching a re-bill of last quarter's work.
 DUPLICATE_WINDOW = timedelta(days=90)
 
+#: Maximum number of extra invoice numbers named in the "Also matches:" suffix of a
+#: POSSIBLE_DUPLICATE message. Even with 50-character invoice numbers, showing the top
+#: match plus 3 extras keeps the message readable and well within the 500-character
+#: database column limit on PostgreSQL.
+MAX_EXTRA_DUPLICATE_MATCHES = 3
+
 #: South Africa has one time zone and no daylight saving, so a fixed UTC+2 offset is
 #: exact. Used only to decide what "today" means for an invoice date, so a supplier
 #: submitting just after midnight SAST is not told their invoice is "in the future".
@@ -187,17 +193,24 @@ def _field_error(field: str, message: str) -> Rejection:
 # ---------------------------------------------------------------------------
 
 
-def find_exact_duplicate(invoice_number: str, supplier_invoices: Iterable[InvoiceLike]) -> InvoiceLike | None:
+def find_exact_duplicate(
+    supplier_id: int, invoice_number: str, supplier_invoices: Iterable[InvoiceLike]
+) -> InvoiceLike | None:
     """Return the supplier's existing live invoice with the same number, if any.
 
     The same supplier must never have two live invoices with one number: that is the
     clearest sign of a double bill, so it is refused outright. Rejected invoices are
     ignored on purpose: if finance rejected an invoice (say, a wrong amount), the
-    supplier must be able to send a corrected one under the same number.
+    supplier must be able to send a corrected one under the same number. Invoices
+    from other suppliers are ignored defensively even if the caller did not pre-filter.
     """
     wanted = normalise_invoice_number(invoice_number)
     for invoice in supplier_invoices:
-        if invoice.status in LIVE_STATUSES and normalise_invoice_number(invoice.invoice_number) == wanted:
+        if (
+            invoice.supplier_id == supplier_id
+            and invoice.status in LIVE_STATUSES
+            and normalise_invoice_number(invoice.invoice_number) == wanted
+        ):
             return invoice
     return None
 
@@ -266,7 +279,7 @@ def check_submission(
         )
 
     # 6. Exact duplicate number.
-    existing = find_exact_duplicate(invoice_number, supplier_invoices)
+    existing = find_exact_duplicate(supplier.id, invoice_number, supplier_invoices)
     if existing is not None:
         return Rejection(
             ErrorCode.DUPLICATE_INVOICE_NUMBER,
@@ -347,13 +360,19 @@ def detect_flags(
         message = (
             f"Same supplier and amount ({format_rand(new_invoice.amount)}) as {best.invoice_number}, {state}."
         )
-        if len(matches) > 1:
-            others = ", ".join(m.invoice_number for m in matches[1:])
-            message += f" Also matches: {others}."
+        extras = matches[1:]
+        if extras:
+            shown = ", ".join(m.invoice_number for m in extras[:MAX_EXTRA_DUPLICATE_MATCHES])
+            remaining = len(extras) - MAX_EXTRA_DUPLICATE_MATCHES
+            if remaining > 0:
+                message += f" Also matches: {shown} (+{remaining} more)."
+            else:
+                message += f" Also matches: {shown}."
         flags.append(FlagDraft(FlagRule.POSSIBLE_DUPLICATE, message, best.id, best.invoice_number))
 
-    others_on_po = [i for i in po_invoices if i.id != new_invoice.id]
-    total = invoiced_amount([*others_on_po, new_invoice])
+    others_on_po = [i for i in po_invoices if i.id != new_invoice.id and i.po_id == po.id]
+    po_total_invoices = [*others_on_po, new_invoice] if new_invoice.po_id == po.id else others_on_po
+    total = invoiced_amount(po_total_invoices)
     if total > po.amount:
         flags.append(
             FlagDraft(

@@ -98,6 +98,11 @@ class TestInvoiceNumbers:
         existing = [FakeInvoice(id=1, invoice_number="UBC-113")]
         assert submit(invoice_number="UBC-114", supplier_invoices=existing) is None
 
+    def test_exact_duplicate_ignores_other_suppliers(self):
+        other_supplier_invoice = FakeInvoice(id=1, supplier_id=2, invoice_number="UBC-114")
+        assert rules.find_exact_duplicate(1, "UBC-114", [other_supplier_invoice]) is None
+        assert submit(invoice_number="UBC-114", supplier_invoices=[other_supplier_invoice]) is None
+
 
 # ---------------------------------------------------------------------------
 # Hard checks on submit
@@ -217,6 +222,22 @@ class TestPossibleDuplicate:
         assert flag.related_invoice_number == "INV001"
         assert "Also matches: INV003." in flag.message
 
+    def test_many_matches_message_fits_500_chars(self):
+        # 20 prior invoices with maximum-length (50-char) invoice numbers.
+        others = [
+            FakeInvoice(
+                id=i,
+                invoice_number=f"INV-{'X' * 43}{i:03d}",
+                submitted_at=days_ago(i),
+            )
+            for i in range(1, 21)
+        ]
+        new = FakeInvoice(id=99, invoice_number="NEW-INVOICE", submitted_at=NOW)
+        [flag] = self.flags_for(new, others)
+        assert len(flag.message) <= 500
+        # Top match (id=1) + 3 listed extras + 16 remaining.
+        assert "(+16 more)." in flag.message
+
 
 class TestPoOverInvoiced:
     def test_second_full_invoice_on_po_flagged(self):
@@ -239,6 +260,12 @@ class TestPoOverInvoiced:
         rejected = FakeInvoice(id=1, amount=Decimal("85000"), status=InvoiceStatus.REJECTED)
         new = FakeInvoice(id=2, invoice_number="X", amount=Decimal("85000"))
         assert rules.detect_flags(new, [], po, [rejected]) == []
+
+    def test_invoices_on_other_pos_are_ignored_defensively(self):
+        po = FakePO(id=1, amount=Decimal("85000"))
+        other_po_invoice = FakeInvoice(id=1, po_id=2, amount=Decimal("85000"))
+        new = FakeInvoice(id=2, po_id=1, invoice_number="X", amount=Decimal("85000"))
+        assert rules.detect_flags(new, [], po, [other_po_invoice]) == []
 
     def test_both_rules_can_fire_together(self):
         po = FakePO(amount=Decimal("85000"))
