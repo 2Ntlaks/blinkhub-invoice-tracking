@@ -22,3 +22,7 @@ explainer-video/
 # Playwright output
 test-results/
 playwright-report/
+
+# Personal study videos (separate from the submission)
+study-videos/
+Study videos/
