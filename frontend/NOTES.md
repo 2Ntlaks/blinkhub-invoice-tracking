@@ -1,29 +1,30 @@
 # Frontend notes: contract gaps and the choices made
 
-The contract (`docs/api-contract.md`) was not edited. Where it is silent or ambiguous, the
-frontend made the conservative choice below. Each item is for the coordinator to confirm.
+Where the contract (`docs/api-contract.md`) was silent or ambiguous, the frontend made the
+conservative choice below. Items 1 and 2 are now **resolved by the contract**; the rest are for the
+coordinator to confirm.
 
-## 1. A supplier cannot see its own ACTIVE / INACTIVE status
-`GET /api/suppliers` is FINANCE/MANAGER only, and `User` has no supplier status. The only signal
-is `422 SUPPLIER_INACTIVE` on submit. Sisonke Trading (supplier 8, user 10) also has **no purchase
-orders** in the seed, so the form can never be sent and that error never appears.
+## 1. A supplier's ACTIVE / INACTIVE status (RESOLVED by the contract)
+Resolved: the contract now gives `User.supplier_status` (`ACTIVE | INACTIVE` for supplier users, `null`
+otherwise; section 4, User).
 
-Choice: when a supplier has no POs, the submit page shows "You cannot submit an invoice right now",
-explaining there is no PO to invoice against **and** that the account may not be active, with a
-"contact BlinkHub procurement" instruction (`data-testid="no-po-notice"`). If `SUPPLIER_INACTIVE`
-does come back from the server, a red "Your supplier account is inactive" notice shows the server
-message and disables the form (`data-testid="supplier-inactive-notice"`).
+Now: when the current user's `supplier_status` is `INACTIVE` (for example Sisonke Trading, user 10),
+the submit page shows the "Your supplier account is inactive" notice up front
+(`data-testid="supplier-inactive-notice"`) and does not render the form; "My invoices" shows a short
+inactive notice and hides the "Submit an invoice" button (`btn-new-invoice`).
+Fallback: if `supplier_status` is missing (older backend), the old behaviour stays: a supplier with no
+POs sees the "You cannot submit an invoice right now" notice (`no-po-notice`), and a server
+`422 SUPPLIER_INACTIVE` on submit still shows the inactive notice with the server message.
 
-Suggested contract fix (for a precise message): add `supplier_status` to `User` for supplier users
-(or `GET /api/me` returning the supplier). The submit page could then show the inactive notice
-before the supplier fills anything in.
+## 2. Open flags on a rejected or paid invoice (RESOLVED by the contract)
+Resolved by contract section 3.5: "needs review" counts and lists (`GET /api/flags`, `flagged=true`,
+`open_flag_count`, the dashboard KPI) only include `OPEN` flags on `SUBMITTED` / `APPROVED` invoices,
+and resolving a flag on a `REJECTED` / `PAID` invoice returns `409 INVALID_STATUS_TRANSITION`.
 
-## 2. Open flags on a rejected invoice
-Rejecting an invoice does not resolve its flags, so a rejected invoice (for example INV008 after
-rejection) keeps `OPEN` flags. They still appear on the Needs review page, in `flagged=true`
-filters and in the dashboard "open flags" KPI. The UI shows whatever the API returns. The
-contract could say either "reject auto-resolves open flags" or "`/api/flags?status=OPEN` and
-`open_flag_count` ignore rejected invoices".
+Now: on a rejected or paid invoice the review-checks panel is labelled as history, an `OPEN` flag shows
+"Not reviewed (invoice closed)" and there is no "Record review outcome" button. If a resolve still
+gets the 409 (the invoice closed while the dialog was open), the dialog shows the server message and
+the page refreshes.
 
 ## 3. Resolve note length
 The contract says `note: string` for flag resolution. The UI requires a non-empty trimmed note;

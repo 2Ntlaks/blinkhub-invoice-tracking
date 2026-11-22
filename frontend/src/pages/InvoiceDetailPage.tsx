@@ -48,6 +48,7 @@ export function InvoiceDetailPage() {
   const flags = isSupplier ? [] : inv.flags;
   const blocking = flags.filter((f) => f.status === "OPEN" || f.status === "CONFIRMED");
   const backTo = isSupplier ? "/my-invoices" : "/invoices";
+  const closed = inv.status === "REJECTED" || inv.status === "PAID";
 
   return (
     <div data-testid="invoice-detail" data-invoice-number={inv.invoice_number}>
@@ -114,7 +115,16 @@ export function InvoiceDetailPage() {
             )}
           </Card>
 
-          {!isSupplier && <FlagsPanel flags={flags} canResolve={isFinance} onResolve={setResolving} />}
+          {!isSupplier && (
+            <FlagsPanel
+              flags={flags}
+              // Contract 3.5: a REJECTED or PAID invoice has no payment decision left for a review
+              // to inform, so its flags are history and cannot be resolved (the API returns 409).
+              canResolve={isFinance && !closed}
+              isHistory={closed}
+              onResolve={setResolving}
+            />
+          )}
 
           <Card className="rise">
             <CardHeader title={isSupplier ? "Status timeline" : "Audit trail"} subtitle={isSupplier ? undefined : "Every change is recorded and cannot be edited or deleted."} />
@@ -174,7 +184,18 @@ const FLAG_STATUS: Record<Flag["status"], { tone: "amber" | "green" | "red"; lab
   CONFIRMED: { tone: "red", label: "Confirmed problem" },
 };
 
-export function FlagsPanel({ flags, canResolve, onResolve }: { flags: Flag[]; canResolve: boolean; onResolve: (f: Flag) => void }) {
+export function FlagsPanel({
+  flags,
+  canResolve,
+  isHistory = false,
+  onResolve,
+}: {
+  flags: Flag[];
+  canResolve: boolean;
+  /** The invoice is REJECTED or PAID: show the checks as a record only (contract 3.5). */
+  isHistory?: boolean;
+  onResolve: (f: Flag) => void;
+}) {
   const open = flags.filter((f) => f.status === "OPEN").length;
   return (
     <Card className="rise" data-testid="flags-panel">
@@ -183,9 +204,11 @@ export function FlagsPanel({ flags, canResolve, onResolve }: { flags: Flag[]; ca
         subtitle={
           flags.length === 0
             ? "No checks were raised for this invoice."
-            : "Automatic checks raised when the invoice was submitted. A check is a prompt to look closer, not an accusation."
+            : isHistory
+              ? "History: these checks were raised when the invoice was submitted. The invoice is closed, so no review outcome is needed any more."
+              : "Automatic checks raised when the invoice was submitted. A check is a prompt to look closer, not an accusation."
         }
-        right={open > 0 ? <Badge tone="amber">Needs review · {open}</Badge> : undefined}
+        right={open > 0 && !isHistory ? <Badge tone="amber">Needs review · {open}</Badge> : isHistory && flags.length > 0 ? <Badge tone="ink">History</Badge> : undefined}
       />
       {flags.length > 0 && (
         <ul className="divide-y divide-rule">
@@ -193,8 +216,8 @@ export function FlagsPanel({ flags, canResolve, onResolve }: { flags: Flag[]; ca
             <li key={f.id} className="px-5 py-4" data-testid={`flag-${f.id}`} data-rule={f.rule} data-status={f.status}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="font-semibold">{RULE_LABEL[f.rule] ?? f.rule}</p>
-                <Badge tone={FLAG_STATUS[f.status].tone} testId="flag-status">
-                  {FLAG_STATUS[f.status].label}
+                <Badge tone={isHistory && f.status === "OPEN" ? "ink" : FLAG_STATUS[f.status].tone} testId="flag-status">
+                  {isHistory && f.status === "OPEN" ? "Not reviewed (invoice closed)" : FLAG_STATUS[f.status].label}
                 </Badge>
               </div>
               <p className="mt-1 text-sm text-ink-2">{f.message}</p>
@@ -396,7 +419,9 @@ function ResolveDialog({ flag, onClose, onDone }: { flag: Flag | null; onClose: 
       if (err instanceof ApiError) {
         const fm = err.fieldMessage("note");
         setErrors(fm ? { note: fm } : { form: err.message });
-        if (err.code === "FLAG_ALREADY_RESOLVED") onDone();
+        // 409 INVALID_STATUS_TRANSITION (contract 3.5): the invoice was rejected or paid meanwhile.
+        // Its message is shown above; refresh behind the dialog so the buttons disappear.
+        if (err.code === "FLAG_ALREADY_RESOLVED" || err.code === "INVALID_STATUS_TRANSITION") onDone();
       } else setErrors({ form: errorMessage(err) });
     } finally {
       setBusy(false);

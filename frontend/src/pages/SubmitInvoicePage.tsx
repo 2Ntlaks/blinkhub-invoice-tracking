@@ -61,6 +61,8 @@ export function SubmitInvoicePage() {
   const navigate = useNavigate();
   const toast = useToast();
   const pos = useAsync(() => api.purchaseOrders(), "pos");
+  // Only an explicit INACTIVE hides the form; a missing/unknown status keeps the old behaviour.
+  const knownInactive = user.supplier_status === "INACTIVE";
 
   const [form, setForm] = useState<FormState>({ po_id: "", invoice_number: "", amount: "", invoice_date: todayIso(), description: "" });
   const [errors, setErrors] = useState<Errors>({});
@@ -130,13 +132,18 @@ export function SubmitInvoicePage() {
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <Card className="rise">
           <CardHeader title={`Invoice from ${supplierName}`} subtitle="Every invoice must be linked to one of your BlinkHub purchase orders." />
-          {pos.loading && !pos.data ? (
+          {knownInactive ? (
+            // Contract 4 (User.supplier_status): tell an inactive supplier up front, before any typing.
+            <div className="px-5 py-6">
+              <InactiveNotice />
+            </div>
+          ) : pos.loading && !pos.data ? (
             <Loading label="Loading your purchase orders" />
           ) : pos.error ? (
             <ErrorState message={pos.error} onRetry={pos.reload} />
           ) : !pos.data || pos.data.length === 0 ? (
-            // The contract gives a supplier user no way to read its own ACTIVE/INACTIVE status
-            // (see frontend/NOTES.md), so this message covers both reasons a supplier has no POs.
+            // Fallback when supplier_status is unknown (older backend): this message covers both
+            // reasons a supplier can have no POs (see frontend/NOTES.md item 1).
             <div className="px-5 py-6" data-testid="no-po-notice">
               <Notice tone="amber" title="You cannot submit an invoice right now">
                 <p>There are no BlinkHub purchase orders on your supplier account. Every invoice must be matched to a purchase order, so there is nothing to invoice against yet.</p>
@@ -148,19 +155,7 @@ export function SubmitInvoicePage() {
             </div>
           ) : (
             <form noValidate onSubmit={onSubmit} className="flex flex-col gap-4 px-5 py-5" data-testid="submit-form">
-              {inactive && (
-                <Notice tone="red" title="Your supplier account is inactive" testId="supplier-inactive-notice">
-                  <p>{inactive}</p>
-                  <p className="mt-1">
-                    BlinkHub can only accept invoices from active suppliers on its supplier register. Please contact BlinkHub procurement to
-                    reactivate your account. Your existing invoices are still listed under{" "}
-                    <Link to="/my-invoices" className="underline">
-                      My invoices
-                    </Link>
-                    .
-                  </p>
-                </Notice>
-              )}
+              {inactive && <InactiveNotice serverMessage={inactive} />}
               {formError && (
                 <Notice tone="red" title="The invoice was not submitted" testId="form-error">
                   {formError}
@@ -271,6 +266,29 @@ export function SubmitInvoicePage() {
         </aside>
       </div>
     </>
+  );
+}
+
+/**
+ * Shown when the supplier is known to be inactive: up front from User.supplier_status, or after
+ * the server refuses with 422 SUPPLIER_INACTIVE (then its message is shown too).
+ */
+function InactiveNotice({ serverMessage }: { serverMessage?: string }) {
+  return (
+    <Notice tone="red" title="Your supplier account is inactive" testId="supplier-inactive-notice">
+      {serverMessage && <p className="mb-1">{serverMessage}</p>}
+      <p>
+        Your supplier account is currently inactive on the BlinkHub supplier register, so new invoices cannot be submitted. This is an account
+        setting, not a problem with any of your invoices.
+      </p>
+      <p className="mt-1">
+        Please contact the BlinkHub procurement office to reactivate your account. Your existing invoices are still listed under{" "}
+        <Link to="/my-invoices" className="underline">
+          My invoices
+        </Link>
+        .
+      </p>
+    </Notice>
   );
 }
 

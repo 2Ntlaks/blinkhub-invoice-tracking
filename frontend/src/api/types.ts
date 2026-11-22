@@ -20,6 +20,12 @@ export interface User {
   name: string;
   role: Role;
   supplier_id: number | null;
+  /**
+   * The linked supplier's status for SUPPLIER users, null otherwise (contract 4, User).
+   * Optional so an older backend that omits it still type-checks: missing means "unknown",
+   * and the UI then falls back to the server's 422 SUPPLIER_INACTIVE on submit.
+   */
+  supplier_status?: "ACTIVE" | "INACTIVE" | null;
 }
 
 export interface Supplier {
