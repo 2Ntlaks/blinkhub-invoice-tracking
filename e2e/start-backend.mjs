@@ -16,7 +16,8 @@ const env = { ...process.env, DATABASE_URL: "sqlite:///./e2e.db", SEED_ON_STARTU
 const reset = spawnSync(py, ["-m", "app.seed", "--reset"], { cwd: backend, env, stdio: "inherit" });
 if (reset.status !== 0) process.exit(reset.status ?? 1);
 
-const server = spawn(py, ["-m", "uvicorn", "app.main:app", "--port", "8000"], { cwd: backend, env, stdio: "inherit" });
+const port = process.env.E2E_API_PORT ?? "8011";
+const server = spawn(py, ["-m", "uvicorn", "app.main:app", "--port", port], { cwd: backend, env, stdio: "inherit" });
 const stop = () => server.kill();
 process.on("SIGINT", stop);
 process.on("SIGTERM", stop);

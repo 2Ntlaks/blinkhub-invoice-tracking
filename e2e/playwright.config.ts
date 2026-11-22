@@ -1,7 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
 
 // The journeys share one seeded database and change it (approve, pay, submit), so they run in
-// order in a single worker. Stop any dev servers on ports 8000/5173 before running.
+// order in a single worker. E2E uses its own ports (API 8011, UI 5183) so it never collides with
+// dev servers, or with Windows services that sometimes hold port 8000.
+const API_PORT = "8011";
+const UI_PORT = "5183";
+
 export default defineConfig({
   testDir: "./tests",
   fullyParallel: false,
@@ -11,7 +15,7 @@ export default defineConfig({
   expect: { timeout: 7_000 },
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL: `http://localhost:${UI_PORT}`,
     viewport: { width: 1366, height: 768 },
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
@@ -20,13 +24,15 @@ export default defineConfig({
   webServer: [
     {
       command: "node start-backend.mjs",
-      url: "http://localhost:8000/api/health",
+      url: `http://localhost:${API_PORT}/api/health`,
+      env: { E2E_API_PORT: API_PORT },
       reuseExistingServer: false,
       timeout: 60_000,
     },
     {
-      command: "npm --prefix ../frontend run dev -- --port 5173 --strictPort",
-      url: "http://localhost:5173",
+      command: `npm --prefix ../frontend run dev -- --port ${UI_PORT} --strictPort`,
+      url: `http://localhost:${UI_PORT}`,
+      env: { API_PROXY_TARGET: `http://localhost:${API_PORT}` },
       reuseExistingServer: false,
       timeout: 60_000,
     },
