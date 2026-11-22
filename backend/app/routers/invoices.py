@@ -7,7 +7,14 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app import services
-from app.auth import any_user, finance_only, get_now, get_session, supplier_only
+from app.auth import (
+    any_user,
+    finance_only,
+    get_now,
+    get_payment_terms_days,
+    get_session,
+    supplier_only,
+)
 from app.enums import InvoiceAction, InvoiceStatus
 from app.models import User
 from app.schemas import (
@@ -22,10 +29,14 @@ from app.schemas import (
 router = APIRouter(prefix="/invoices", tags=["invoices"])
 
 
-def _detail(session: Session, user: User, invoice_id: int, now: datetime) -> InvoiceDetailOut:
+def _detail(
+    session: Session, user: User, invoice_id: int, now: datetime, payment_terms_days: int
+) -> InvoiceDetailOut:
     # Start from fresh rows so the response shows exactly what was committed.
     session.expire_all()
-    return services.invoice_detail_out(services.get_visible_invoice(session, user, invoice_id), user, now)
+    return services.invoice_detail_out(
+        services.get_visible_invoice(session, user, invoice_id), user, now, payment_terms_days
+    )
 
 
 @router.get("", response_model=list[InvoiceOut])
@@ -38,11 +49,12 @@ def list_invoices(
     user: User = Depends(any_user),
     session: Session = Depends(get_session),
     now: datetime = Depends(get_now),
+    payment_terms_days: int = Depends(get_payment_terms_days),
 ) -> list[InvoiceOut]:
     filters = services.InvoiceFilters(
         status=status, supplier_id=supplier_id, overdue=overdue, flagged=flagged, sort=sort
     )
-    return services.list_invoices(session, user, now, filters)
+    return services.list_invoices(session, user, now, filters, payment_terms_days)
 
 
 @router.post("", response_model=InvoiceDetailOut, status_code=201)
@@ -51,6 +63,7 @@ def submit_invoice(
     user: User = Depends(supplier_only),
     session: Session = Depends(get_session),
     now: datetime = Depends(get_now),
+    payment_terms_days: int = Depends(get_payment_terms_days),
 ) -> InvoiceDetailOut:
     invoice_id = services.submit_invoice(
         session,
@@ -62,7 +75,7 @@ def submit_invoice(
         description=body.description,
         now=now,
     )
-    return _detail(session, user, invoice_id, now)
+    return _detail(session, user, invoice_id, now, payment_terms_days)
 
 
 @router.get("/{invoice_id}", response_model=InvoiceDetailOut)
@@ -71,8 +84,11 @@ def get_invoice(
     user: User = Depends(any_user),
     session: Session = Depends(get_session),
     now: datetime = Depends(get_now),
+    payment_terms_days: int = Depends(get_payment_terms_days),
 ) -> InvoiceDetailOut:
-    return services.invoice_detail_out(services.get_visible_invoice(session, user, invoice_id), user, now)
+    return services.invoice_detail_out(
+        services.get_visible_invoice(session, user, invoice_id), user, now, payment_terms_days
+    )
 
 
 @router.post("/{invoice_id}/approve", response_model=InvoiceDetailOut)
@@ -82,10 +98,11 @@ def approve_invoice(
     user: User = Depends(finance_only),
     session: Session = Depends(get_session),
     now: datetime = Depends(get_now),
+    payment_terms_days: int = Depends(get_payment_terms_days),
 ) -> InvoiceDetailOut:
     note = body.note if body else None
     services.apply_action(session, user, invoice_id, InvoiceAction.APPROVE, now, note=note)
-    return _detail(session, user, invoice_id, now)
+    return _detail(session, user, invoice_id, now, payment_terms_days)
 
 
 @router.post("/{invoice_id}/reject", response_model=InvoiceDetailOut)
@@ -95,9 +112,10 @@ def reject_invoice(
     user: User = Depends(finance_only),
     session: Session = Depends(get_session),
     now: datetime = Depends(get_now),
+    payment_terms_days: int = Depends(get_payment_terms_days),
 ) -> InvoiceDetailOut:
     services.apply_action(session, user, invoice_id, InvoiceAction.REJECT, now, reason=body.reason)
-    return _detail(session, user, invoice_id, now)
+    return _detail(session, user, invoice_id, now, payment_terms_days)
 
 
 @router.post("/{invoice_id}/pay", response_model=InvoiceDetailOut)
@@ -107,8 +125,9 @@ def pay_invoice(
     user: User = Depends(finance_only),
     session: Session = Depends(get_session),
     now: datetime = Depends(get_now),
+    payment_terms_days: int = Depends(get_payment_terms_days),
 ) -> InvoiceDetailOut:
     services.apply_action(
         session, user, invoice_id, InvoiceAction.PAY, now, payment_reference=body.payment_reference
     )
-    return _detail(session, user, invoice_id, now)
+    return _detail(session, user, invoice_id, now, payment_terms_days)

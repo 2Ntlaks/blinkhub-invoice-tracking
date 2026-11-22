@@ -37,6 +37,11 @@ def get_now(request: Request) -> datetime:
     return request.app.state.clock()
 
 
+def get_payment_terms_days(request: Request) -> int:
+    """Configured payment terms (days), shared across invoice ageing and the dashboard."""
+    return request.app.state.settings.payment_terms_days
+
+
 def current_user(
     x_user_id: str | None = Header(default=None, alias="X-User-Id"),
     session: Session = Depends(get_session),

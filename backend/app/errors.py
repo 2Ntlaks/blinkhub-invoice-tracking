@@ -50,10 +50,12 @@ _CODE_FOR_HTTP_STATUS = {
 }
 
 
-def _field_name(loc: tuple[Any, ...] | list[Any]) -> str:
+def _field_name(err: dict[str, Any]) -> str:
+    if err.get("type") == "json_invalid":
+        return "body"
     # Pydantic locations look like ("body", "amount") or ("query", "status").
     # The contract wants just the field name, so drop the leading section.
-    parts = [str(p) for p in loc]
+    parts = [str(p) for p in err.get("loc", ())]
     if parts and parts[0] in {"body", "query", "path", "header", "cookie"}:
         parts = parts[1:]
     return ".".join(parts) or "body"
@@ -73,7 +75,7 @@ def install_error_handlers(app: FastAPI) -> None:
     async def _validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
         details = [
             {
-                "field": _field_name(err.get("loc", ())),
+                "field": _field_name(err),
                 "message": _clean_message(str(err.get("msg", "invalid"))),
             }
             for err in exc.errors()

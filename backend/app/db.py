@@ -9,8 +9,9 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime
+from typing import Any
 
-from sqlalchemy import Engine, create_engine
+from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 
 Clock = Callable[[], datetime]
@@ -39,7 +40,18 @@ def make_engine(database_url: str) -> Engine:
         # FastAPI may run a request on a different thread from the one that opened the
         # connection; SQLite refuses that unless told it is fine.
         connect_args["check_same_thread"] = False
-    return create_engine(database_url, connect_args=connect_args)
+    engine = create_engine(database_url, connect_args=connect_args)
+    if database_url.startswith("sqlite"):
+        # Enforce foreign keys on SQLite so local runs match PostgreSQL integrity checks.
+        @event.listens_for(engine, "connect")
+        def _enable_sqlite_foreign_keys(dbapi_connection: Any, _connection_record: Any) -> None:
+            cursor = dbapi_connection.cursor()
+            try:
+                cursor.execute("PRAGMA foreign_keys=ON")
+            finally:
+                cursor.close()
+
+    return engine
 
 
 def make_session_factory(engine: Engine) -> sessionmaker[Session]:

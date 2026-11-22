@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import date, timedelta
+from decimal import Decimal
 
 import pytest
-from conftest import FINANCE, MANAGER, PRIME, SISONKE, THUTO, UBUNTU
+from conftest import FINANCE, FROZEN_NOW, MANAGER, PRIME, SISONKE, THUTO, UBUNTU
+from fastapi.testclient import TestClient
+from sqlalchemy.exc import IntegrityError
 
-from app.models import AuditEvent
+from app.config import Settings
+from app.enums import InvoiceStatus
+from app.main import create_app
+from app.models import AuditEvent, Invoice
 
 NEW_INVOICE = {
     "invoice_number": "UBC-2026-114",
@@ -173,6 +179,20 @@ class TestDashboard:
         attention = client.get("/api/dashboard", headers=FINANCE).json()["attention"]
         assert attention[0]["days_outstanding"] == 66
 
+    def test_custom_payment_terms_days_forwarded(self, tmp_path, clock):
+        settings = Settings(
+            database_url=f"sqlite:///{(tmp_path / 'terms.db').as_posix()}",
+            seed_on_startup=True,
+            payment_terms_days=45,
+        )
+        with TestClient(create_app(settings, clock=clock)) as custom_client:
+            # At 45-day terms, only INV003 (65d) and INV006 (47d) are overdue.
+            dash = custom_client.get("/api/dashboard", headers=FINANCE).json()
+            assert dash["payment_terms_days"] == 45
+            assert dash["kpis"]["overdue_count"] == 2
+            overdue_list = custom_client.get("/api/invoices?overdue=true", headers=FINANCE).json()
+            assert [i["invoice_number"] for i in overdue_list] == ["INV003", "INV006"]
+
 
 # ---------------------------------------------------------------------------
 # Identity and permissions (contract section 1)
@@ -240,8 +260,10 @@ class TestAuth:
             ("post", "/api/flags/1/resolve", MANAGER),
             ("post", "/api/invoices/3/approve", MANAGER),
             ("post", "/api/invoices/3/approve", UBUNTU),
+            ("post", "/api/invoices/3/reject", MANAGER),
             ("post", "/api/invoices/3/reject", UBUNTU),
             ("post", "/api/invoices/3/pay", MANAGER),
+            ("post", "/api/invoices/3/pay", UBUNTU),
             ("post", "/api/invoices", FINANCE),
             ("post", "/api/invoices", MANAGER),
         ],
@@ -304,6 +326,44 @@ class TestSupplierView:
         assert [(e["action"], e["note"]) for e in audit] == [
             ("SUBMITTED", None),
             ("REJECTED", "Same work as INV001, already paid."),
+        ]
+
+    def test_supplier_notes_masked_on_approved_and_paid(self, client):
+        invoice_id = submit(client).json()["id"]
+        assert (
+            client.post(
+                f"/api/invoices/{invoice_id}/approve",
+                json={"note": "Internal delivery note verification."},
+                headers=FINANCE,
+            ).status_code
+            == 200
+        )
+        supplier_approved = client.get(f"/api/invoices/{invoice_id}", headers=UBUNTU).json()
+        assert [(e["action"], e["note"]) for e in supplier_approved["audit"]] == [
+            ("SUBMITTED", None),
+            ("APPROVED", None),
+        ]
+
+        assert (
+            client.post(
+                f"/api/invoices/{invoice_id}/pay",
+                json={"payment_reference": "EFT-777"},
+                headers=FINANCE,
+            ).status_code
+            == 200
+        )
+        supplier_paid = client.get(f"/api/invoices/{invoice_id}", headers=UBUNTU).json()
+        assert supplier_paid["payment_reference"] == "EFT-777"
+        assert [(e["action"], e["note"]) for e in supplier_paid["audit"]] == [
+            ("SUBMITTED", None),
+            ("APPROVED", None),
+            ("PAID", None),
+        ]
+        finance_paid = client.get(f"/api/invoices/{invoice_id}", headers=FINANCE).json()
+        assert [(e["action"], e["note"]) for e in finance_paid["audit"]] == [
+            ("SUBMITTED", None),
+            ("APPROVED", "Internal delivery note verification."),
+            ("PAID", "Payment reference EFT-777"),
         ]
 
     def test_new_submission_flags_hidden_from_supplier_visible_to_finance(self, client):
@@ -403,6 +463,33 @@ class TestSubmit:
         assert again.status_code == 201
         assert again.json()["id"] != first["id"]
 
+    def test_spoofed_supplier_id_in_body_is_ignored(self, client):
+        # Sending another supplier's id in the JSON body must never reassign ownership.
+        created = client.post("/api/invoices", json={**NEW_INVOICE, "supplier_id": 2}, headers=UBUNTU)
+        assert created.status_code == 201
+        assert created.json()["supplier"]["id"] == 1
+
+        # And it cannot be used to bill against another supplier's PO (PO009 belongs to Prime).
+        mismatched = client.post(
+            "/api/invoices",
+            json={**NEW_INVOICE, "invoice_number": "UBC-SPOOF-2", "po_id": 9, "supplier_id": 2},
+            headers=UBUNTU,
+        )
+        assert (mismatched.status_code, error_code(mismatched)) == (422, "PO_SUPPLIER_MISMATCH")
+
+    def test_live_po_over_invoiced_flag_raised_on_submit(self, client):
+        # PO008 is R95,000. Two different-amount invoices totalling R110,000 trigger PO_OVER_INVOICED.
+        first = submit(client, invoice_number="UBC-PART-1", amount=60000.0)
+        assert first.status_code == 201
+        second = submit(client, invoice_number="UBC-PART-2", amount=50000.0)
+        assert second.status_code == 201
+        assert second.json()["flags"] == []  # hidden from supplier
+
+        staff = client.get(f"/api/invoices/{second.json()['id']}", headers=FINANCE).json()
+        assert [f["rule"] for f in staff["flags"]] == ["PO_OVER_INVOICED"]
+        assert "R110,000.00" in staff["flags"][0]["message"]
+        assert "R15,000.00 more than" in staff["flags"][0]["message"]
+
 
 # ---------------------------------------------------------------------------
 # Lifecycle, flags and audit trail
@@ -447,6 +534,20 @@ class TestLifecycle:
         response = client.post("/api/invoices/3/approve", headers=FINANCE)  # INV003 has no flags
         assert response.status_code == 200
         assert response.json()["audit"][-1]["note"] is None
+
+    def test_reject_from_approved_via_http(self, client):
+        assert client.post("/api/invoices/3/approve", headers=FINANCE).status_code == 200
+        rejected = client.post(
+            "/api/invoices/3/reject",
+            json={"reason": "Delivery shortfall reported before payment run."},
+            headers=FINANCE,
+        )
+        assert rejected.status_code == 200
+        body = rejected.json()
+        assert body["status"] == "REJECTED"
+        assert body["rejection_reason"] == "Delivery shortfall reported before payment run."
+        assert body["audit"][-1]["from_status"] == "APPROVED"
+        assert body["audit"][-1]["to_status"] == "REJECTED"
 
     def test_pay_before_approval_refused(self, client):
         response = client.post("/api/invoices/3/pay", json={"payment_reference": "EFT-1"}, headers=FINANCE)
@@ -589,6 +690,26 @@ class TestLifecycle:
         finally:
             session.close()
 
+    def test_sqlite_foreign_keys_enforced(self, client):
+        session = client.app.state.session_factory()
+        try:
+            session.add(
+                Invoice(
+                    invoice_number="ORPHAN-1",
+                    supplier_id=9999,
+                    po_id=1,
+                    amount=Decimal("100.00"),
+                    invoice_date=date(2026, 11, 20),
+                    status=InvoiceStatus.SUBMITTED,
+                    submitted_at=FROZEN_NOW,
+                )
+            )
+            with pytest.raises(IntegrityError):
+                session.flush()
+        finally:
+            session.rollback()
+            session.close()
+
 
 # ---------------------------------------------------------------------------
 # Listing, filters and framework errors
@@ -620,6 +741,15 @@ class TestListing:
         response = client.get("/api/invoices?status=LOST", headers=FINANCE)
         assert (response.status_code, error_code(response)) == (422, "VALIDATION_ERROR")
         assert response.json()["error"]["details"][0]["field"] == "status"
+
+    def test_malformed_json_reports_body_field(self, client):
+        response = client.post(
+            "/api/invoices",
+            content=b"{bad json",
+            headers={**UBUNTU, "Content-Type": "application/json"},
+        )
+        assert (response.status_code, error_code(response)) == (422, "VALIDATION_ERROR")
+        assert response.json()["error"]["details"][0]["field"] == "body"
 
     def test_unknown_route_and_wrong_method_use_error_shape(self, client):
         missing = client.get("/api/nothing-here")

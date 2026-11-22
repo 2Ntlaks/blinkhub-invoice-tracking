@@ -109,12 +109,18 @@ def user_out(user: User) -> UserOut:
     )
 
 
-def invoice_out(invoice: Invoice, viewer: User, now: datetime) -> InvoiceOut:
-    return InvoiceOut(**_invoice_fields(invoice, viewer, now))
+def invoice_out(
+    invoice: Invoice, viewer: User, now: datetime, payment_terms_days: int = rules.PAYMENT_TERMS_DAYS
+) -> InvoiceOut:
+    return InvoiceOut(**_invoice_fields(invoice, viewer, now, payment_terms_days))
 
 
-def _invoice_fields(invoice: Invoice, viewer: User, now: datetime) -> dict[str, object]:
-    ageing = rules.compute_ageing(invoice.status, invoice.submitted_at, invoice.paid_at, now)
+def _invoice_fields(
+    invoice: Invoice, viewer: User, now: datetime, payment_terms_days: int = rules.PAYMENT_TERMS_DAYS
+) -> dict[str, object]:
+    ageing = rules.compute_ageing(
+        invoice.status, invoice.submitted_at, invoice.paid_at, now, payment_terms_days
+    )
     return {
         "id": invoice.id,
         "invoice_number": invoice.invoice_number,
@@ -137,11 +143,13 @@ def _invoice_fields(invoice: Invoice, viewer: User, now: datetime) -> dict[str, 
     }
 
 
-def invoice_detail_out(invoice: Invoice, viewer: User, now: datetime) -> InvoiceDetailOut:
+def invoice_detail_out(
+    invoice: Invoice, viewer: User, now: datetime, payment_terms_days: int = rules.PAYMENT_TERMS_DAYS
+) -> InvoiceDetailOut:
     supplier_view = is_supplier(viewer)
     events = [e for e in invoice.audit_events if not (supplier_view and e.action in FLAG_ACTIONS)]
     return InvoiceDetailOut(
-        **_invoice_fields(invoice, viewer, now),
+        **_invoice_fields(invoice, viewer, now, payment_terms_days),
         description=invoice.description,
         flags=[] if supplier_view else [flag_out(f) for f in invoice.flags],
         audit=[audit_out(e, supplier_view) for e in events],
@@ -216,8 +224,14 @@ class InvoiceFilters:
     sort: str = "age_desc"
 
 
-def list_invoices(session: Session, user: User, now: datetime, filters: InvoiceFilters) -> list[InvoiceOut]:
-    items = [invoice_out(i, user, now) for i in load_invoices(session, user)]
+def list_invoices(
+    session: Session,
+    user: User,
+    now: datetime,
+    filters: InvoiceFilters,
+    payment_terms_days: int = rules.PAYMENT_TERMS_DAYS,
+) -> list[InvoiceOut]:
+    items = [invoice_out(i, user, now, payment_terms_days) for i in load_invoices(session, user)]
     if filters.status is not None:
         items = [i for i in items if i.status == filters.status]
     if filters.supplier_id is not None:
@@ -482,7 +496,7 @@ def resolve_flag(
 def build_dashboard(session: Session, user: User, now: datetime, payment_terms_days: int) -> DashboardOut:
     invoices = load_invoices(session, user)
     pos = list(session.scalars(select(PurchaseOrder).options(selectinload(PurchaseOrder.supplier))))
-    items = [invoice_out(i, user, now) for i in invoices]
+    items = [invoice_out(i, user, now, payment_terms_days) for i in invoices]
 
     open_items = [i for i in items if i.status in rules.OPEN_STATUSES]
     overdue = [i for i in open_items if i.is_overdue]
