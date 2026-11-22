@@ -1,0 +1,43 @@
+# Production-like stack: PostgreSQL + FastAPI + the built frontend behind nginx.
+#   docker compose up --build      then open http://localhost:8080
+# Local development without Docker uses SQLite instead (see README.md).
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-blinkhub}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-blinkhub}
+      POSTGRES_DB: ${POSTGRES_DB:-blinkhub}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-blinkhub}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-blinkhub}:${POSTGRES_PASSWORD:-blinkhub}@db:5432/${POSTGRES_DB:-blinkhub}
+      SEED_ON_STARTUP: "true"
+      CORS_ORIGINS: http://localhost:8080
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+volumes:
+  pgdata:
