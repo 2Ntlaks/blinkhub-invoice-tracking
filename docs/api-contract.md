@@ -121,14 +121,24 @@ SUBMITTED --approve--> APPROVED --pay--> PAID
 - `ageing_bucket` (open invoices only, else `null`): `"0-30"`, `"31-60"`, `"61-90"`, `"90+"`.
 - The 30-day threshold is a config constant (`PAYMENT_TERMS_DAYS = 30`).
 
+### 3.5 Which flags count as open review work
+A flag needs attention only while its invoice can still be paid. Everywhere the system counts or lists
+"needs review" work, it uses flags with status `OPEN` on invoices whose status is `SUBMITTED` or `APPROVED`:
+`GET /api/flags`, the `flagged=true` filter, `open_flag_count` on invoices, and the dashboard `open_flag_count`.
+Rejecting an invoice does not change its flags (a rejection is not a finding about the flag); they stay
+visible as history in the invoice detail but drop out of the review queue and counts.
+
 ---
 
 ## 4. Resources
 
 ### User
 ```json
-{ "id": 3, "name": "Thandi Nkosi", "role": "FINANCE", "supplier_id": null }
+{ "id": 1, "name": "Thandi Nkosi", "role": "FINANCE", "supplier_id": null, "supplier_status": null }
 ```
+`supplier_status` is the linked supplier's `ACTIVE | INACTIVE` for SUPPLIER users, `null` otherwise.
+The UI uses it to explain up front that an inactive supplier cannot submit (the API still enforces
+`SUPPLIER_INACTIVE` on submit).
 
 ### Supplier
 ```json
