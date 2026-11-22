@@ -166,11 +166,42 @@ class TestDashboard:
 
 
 class TestAuth:
-    @pytest.mark.parametrize("headers", [{}, {"X-User-Id": "abc"}, {"X-User-Id": ""}, {"X-User-Id": "999"}])
+    @pytest.mark.parametrize(
+        "headers",
+        [
+            {},
+            {"X-User-Id": ""},
+            {"X-User-Id": "   "},
+            {"X-User-Id": "abc"},
+            {"X-User-Id": "--1"},
+            {"X-User-Id": "0"},
+            {"X-User-Id": "-5"},
+            {"X-User-Id": "999"},
+            {"X-User-Id": "9" * 30},
+        ],
+    )
     def test_missing_bad_or_unknown_user_is_401(self, client, headers):
         response = client.get("/api/invoices", headers=headers)
         assert response.status_code == 401
         assert error_code(response) == "UNAUTHENTICATED"
+
+    def test_out_of_range_ids_do_not_500(self, client):
+        huge = 10**30 - 1  # 30 nines
+        for bad_id in (0, -5, huge):
+            inv = client.get(f"/api/invoices/{bad_id}", headers=FINANCE)
+            assert (inv.status_code, error_code(inv)) == (404, "NOT_FOUND")
+
+            flg = resolve(client, bad_id, "CLEARED")
+            assert (flg.status_code, error_code(flg)) == (404, "NOT_FOUND")
+
+            po_sub = submit(client, po_id=bad_id)
+            assert (po_sub.status_code, error_code(po_sub)) == (422, "PO_NOT_FOUND")
+
+            pos = client.get(f"/api/purchase-orders?supplier_id={bad_id}", headers=FINANCE)
+            assert pos.status_code == 200 and pos.json() == []
+
+            invs = client.get(f"/api/invoices?supplier_id={bad_id}", headers=FINANCE)
+            assert invs.status_code == 200 and invs.json() == []
 
     def test_me(self, client):
         assert client.get("/api/me", headers=UBUNTU).json()["supplier_id"] == 1

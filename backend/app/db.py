@@ -15,6 +15,18 @@ from sqlalchemy.orm import Session, sessionmaker
 
 Clock = Callable[[], datetime]
 
+#: PostgreSQL ``INTEGER`` (signed 32-bit) maximum; safely inside SQLite's 64-bit integer too.
+MAX_INT32 = 2_147_483_647
+
+
+def is_valid_id(value: int) -> bool:
+    """Whether ``value`` can match a positive database primary key (1..MAX_INT32).
+
+    Guarding before querying prevents SQLite ``OverflowError`` and PostgreSQL integer-range
+    errors when a caller sends a negative, zero, or oversized id.
+    """
+    return 1 <= value <= MAX_INT32
+
 
 def utc_now() -> datetime:
     """Current time in UTC, to the second (the contract's timestamps have no fractions)."""

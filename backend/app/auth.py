@@ -7,15 +7,20 @@ own records.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Iterator
 from datetime import datetime
 
 from fastapi import Depends, Header, Request
 from sqlalchemy.orm import Session
 
+from app.db import is_valid_id
 from app.enums import ErrorCode, Role
 from app.errors import AppError
 from app.models import User
+
+#: Strict ASCII integer check: rejects "--1", "+1", decimals, and non-ASCII digits.
+_INT_PATTERN = re.compile(r"-?\d+", re.ASCII)
 
 
 def get_session(request: Request) -> Iterator[Session]:
@@ -35,11 +40,15 @@ def current_user(
     x_user_id: str | None = Header(default=None, alias="X-User-Id"),
     session: Session = Depends(get_session),
 ) -> User:
-    if x_user_id is None or not x_user_id.strip().lstrip("-").isdigit():
+    raw = (x_user_id or "").strip()
+    if not _INT_PATTERN.fullmatch(raw):
         raise AppError(ErrorCode.UNAUTHENTICATED, "Send the X-User-Id header with a valid user id.")
-    user = session.get(User, int(x_user_id))
+    user_id = int(raw)
+    if not is_valid_id(user_id):
+        raise AppError(ErrorCode.UNAUTHENTICATED, f"Unknown user id {raw}.")
+    user = session.get(User, user_id)
     if user is None:
-        raise AppError(ErrorCode.UNAUTHENTICATED, f"Unknown user id {x_user_id.strip()}.")
+        raise AppError(ErrorCode.UNAUTHENTICATED, f"Unknown user id {raw}.")
     return user
 
 

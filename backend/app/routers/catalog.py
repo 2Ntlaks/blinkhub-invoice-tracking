@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.auth import any_user, get_session, internal_staff
+from app.db import is_valid_id
 from app.models import PurchaseOrder, Supplier, User
 from app.schemas import PurchaseOrderOut, SupplierOut
 from app.services import is_supplier, purchase_order_out
@@ -35,5 +36,7 @@ def list_purchase_orders(
         # gives an empty list, which reveals nothing.
         query = query.where(PurchaseOrder.supplier_id == user.supplier_id)
     if supplier_id is not None:
+        if not is_valid_id(supplier_id):
+            return []
         query = query.where(PurchaseOrder.supplier_id == supplier_id)
     return [purchase_order_out(po) for po in session.scalars(query)]

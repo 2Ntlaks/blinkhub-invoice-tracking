@@ -14,6 +14,7 @@ from sqlalchemy import Select, select
 from sqlalchemy.orm import Session, selectinload
 
 from app import rules
+from app.db import is_valid_id
 from app.enums import (
     AuditAction,
     ErrorCode,
@@ -80,6 +81,8 @@ def load_invoices(session: Session, user: User) -> list[Invoice]:
 
 def get_visible_invoice(session: Session, user: User, invoice_id: int) -> Invoice:
     """The invoice, or 404. Another supplier's invoice is also a 404, so its existence is not revealed."""
+    if not is_valid_id(invoice_id):
+        raise AppError(ErrorCode.NOT_FOUND, f"Invoice {invoice_id} not found.")
     invoice = session.scalars(_invoice_query().where(Invoice.id == invoice_id)).first()
     if invoice is None or (is_supplier(user) and invoice.supplier_id != user.supplier_id):
         raise AppError(ErrorCode.NOT_FOUND, f"Invoice {invoice_id} not found.")
@@ -253,7 +256,7 @@ def create_invoice(
 
     Raises :class:`AppError` for a hard-check failure; nothing is written in that case.
     """
-    po = session.get(PurchaseOrder, po_id)
+    po = session.get(PurchaseOrder, po_id) if is_valid_id(po_id) else None
     supplier_invoices = list(session.scalars(select(Invoice).where(Invoice.supplier_id == supplier.id)))
     rejection = rules.check_submission(
         invoice_number=invoice_number,
@@ -437,7 +440,7 @@ def list_flags(session: Session, status: FlagStatus | None) -> list[FlagOut]:
 def resolve_flag(
     session: Session, user: User, flag_id: int, outcome: FlagStatus, note: str, now: datetime
 ) -> FlagOut:
-    flag = session.get(Flag, flag_id)
+    flag = session.get(Flag, flag_id) if is_valid_id(flag_id) else None
     if flag is None:
         raise AppError(ErrorCode.NOT_FOUND, f"Flag {flag_id} not found.")
     rejection = rules.check_flag_resolvable(flag.status)
