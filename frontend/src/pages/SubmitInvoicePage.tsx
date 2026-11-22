@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router";
 import { api, ApiError, errorMessage } from "../api/client";
 import type { PurchaseOrder } from "../api/types";
 import { PageTitle } from "../components/Layout";
-import { Button, Card, CardHeader, EmptyState, ErrorState, Field, Input, Loading, Notice, Select, Textarea } from "../components/ui";
+import { Button, Card, CardHeader, ErrorState, Field, Input, Loading, Notice, Select, Textarea } from "../components/ui";
 import { money, todayIso } from "../lib/format";
 import { useSession } from "../lib/session";
 import { useToast } from "../lib/toast";
@@ -135,7 +135,17 @@ export function SubmitInvoicePage() {
           ) : pos.error ? (
             <ErrorState message={pos.error} onRetry={pos.reload} />
           ) : !pos.data || pos.data.length === 0 ? (
-            <EmptyState title="No purchase orders yet">You can submit an invoice once BlinkHub has issued you a purchase order.</EmptyState>
+            // The contract gives a supplier user no way to read its own ACTIVE/INACTIVE status
+            // (see frontend/NOTES.md), so this message covers both reasons a supplier has no POs.
+            <div className="px-5 py-6" data-testid="no-po-notice">
+              <Notice tone="amber" title="You cannot submit an invoice right now">
+                <p>There are no BlinkHub purchase orders on your supplier account. Every invoice must be matched to a purchase order, so there is nothing to invoice against yet.</p>
+                <p className="mt-1">
+                  This can also mean your supplier account is not active on the BlinkHub supplier register. Please contact BlinkHub procurement to check
+                  your account status or to request a purchase order.
+                </p>
+              </Notice>
+            </div>
           ) : (
             <form noValidate onSubmit={onSubmit} className="flex flex-col gap-4 px-5 py-5" data-testid="submit-form">
               {inactive && (
@@ -190,7 +200,7 @@ export function SubmitInvoicePage() {
                       onChange={(e) => set("invoice_number", e.target.value)}
                     />
                   </Field>
-                  <Field label="Amount (ZAR, incl. VAT)" htmlFor="amount" error={errors.amount} hint={po ? `At most ${money(po.amount)} for this order.` : undefined} testId="field-amount">
+                  <Field label="Amount (ZAR)" htmlFor="amount" error={errors.amount} hint={po ? `At most ${money(po.amount)} for this order.` : undefined} testId="field-amount">
                     <div className="relative">
                       <span className="num pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted">R</span>
                       <Input

@@ -63,7 +63,7 @@ export function DashboardPage() {
         <Kpi testId="kpi-overdue-amount" label="Overdue value" value={moneyShort(k.overdue_amount)} full={money(k.overdue_amount)} alert={k.overdue_amount > 0} />
         <Kpi
           testId="kpi-avg-turnaround"
-          label="Avg payment turnaround"
+          label="Avg turnaround"
           value={k.avg_payment_turnaround_days === null ? "-" : k.avg_payment_turnaround_days.toFixed(1)}
           unit="days"
           sub="submission to payment"
@@ -138,7 +138,7 @@ function Kpi({
         {value}
         {unit && <span className="ml-1 font-sans text-sm font-medium text-muted">{unit}</span>}
       </p>
-      {(sub || full) && <p className="num mt-1 truncate text-[0.72rem] text-muted">{full ?? sub}</p>}
+      {full ? <p className="num mt-1 truncate text-[0.72rem] text-muted">{full}</p> : sub ? <p className="mt-1 truncate text-[0.75rem] text-muted">{sub}</p> : null}
     </>
   );
   const cls = `sheet rise block border-t-4 px-3.5 py-3 ${accent}`;
@@ -317,7 +317,7 @@ function AttentionList({ d }: { d: Dashboard }) {
                 data-testid={`attention-row-${inv.invoice_number}`}
                 className={`flex items-center gap-3 px-5 py-2.5 transition-colors hover:bg-sheet-2 ${inv.is_overdue ? "shadow-[inset_4px_0_0_var(--color-stamp-red)]" : ""}`}
               >
-                <span className="num w-16 shrink-0 font-semibold">{inv.invoice_number}</span>
+                <span className="num w-[4.5rem] shrink-0 font-semibold">{inv.invoice_number}</span>
                 <span className="min-w-0 flex-1 truncate text-sm">
                   {inv.supplier.name}
                   {inv.supplier.supplier_type === "SMME" && <SmmeTag />}
@@ -326,8 +326,10 @@ function AttentionList({ d }: { d: Dashboard }) {
                 <span className="w-12 shrink-0 text-right">
                   <DaysOutstanding invoice={inv} />
                 </span>
-                <span className="flex w-52 shrink-0 flex-wrap justify-end gap-1">
-                  <StatusBadge status={inv.status} />
+                {/* Every row here is open (SUBMITTED or APPROVED), so only APPROVED needs a stamp:
+                    it tells finance the invoice is just waiting for payment. Fixed width keeps columns aligned. */}
+                <span className="flex w-[13.5rem] shrink-0 justify-end gap-1">
+                  {inv.status === "APPROVED" && <StatusBadge status={inv.status} />}
                   <OverdueBadge invoice={inv} termsDays={d.payment_terms_days} />
                   <ReviewBadge count={inv.open_flag_count} />
                 </span>

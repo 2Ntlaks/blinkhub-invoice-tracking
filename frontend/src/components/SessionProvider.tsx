@@ -21,8 +21,13 @@ export function SessionProvider({ children, onSwitch }: { children: ReactNode; o
       .users()
       .then((list) => {
         if (!live) return;
+        // `?as=<userId>` opens the app as that demo user (handy for demo bookmarks and
+        // screenshots). It is demo identity only, exactly like the switcher itself.
+        const asParam = Number(new URLSearchParams(window.location.search).get("as"));
+        const fromUrl = Number.isInteger(asParam) ? list.find((u) => u.id === asParam) : undefined;
+        if (fromUrl) saveUserId(fromUrl.id);
         const stored = loadUserId();
-        const pick = list.find((u) => u.id === stored) ?? list.find((u) => u.role === "FINANCE") ?? list[0];
+        const pick = fromUrl ?? list.find((u) => u.id === stored) ?? list.find((u) => u.role === "FINANCE") ?? list[0];
         // Set the header before any child mounts and fires a request.
         setCurrentUserId(pick?.id ?? null);
         setUsers(list);

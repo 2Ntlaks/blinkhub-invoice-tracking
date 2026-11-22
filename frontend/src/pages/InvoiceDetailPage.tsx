@@ -52,7 +52,7 @@ export function InvoiceDetailPage() {
   return (
     <div data-testid="invoice-detail" data-invoice-number={inv.invoice_number}>
       <Link to={backTo} className="text-sm text-muted hover:text-ink" data-testid="back-link">
-        ← {isSupplier ? "My invoices" : "Invoice queue"}
+        ← {isSupplier ? "My invoices" : user.role === "MANAGER" ? "All invoices" : "Invoice queue"}
       </Link>
 
       <div className="rise mt-2 mb-5 flex flex-wrap items-end justify-between gap-4">
