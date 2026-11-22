@@ -1,0 +1,9 @@
+# Runtime dependencies (exact versions installed and tested on Python 3.12).
+fastapi==0.165.0
+starlette==1.10.0
+uvicorn==0.54.0
+SQLAlchemy==2.1.9
+pydantic==2.14.4
+pydantic_core==2.50.5
+# PostgreSQL driver, used when DATABASE_URL is a postgresql+psycopg:// URL (Docker Compose).
+psycopg[binary]==3.3.9

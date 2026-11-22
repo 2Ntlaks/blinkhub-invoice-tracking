@@ -1,0 +1,25 @@
+[project]
+name = "blinkhub-backend"
+version = "0.1.0"
+description = "BlinkHub invoice and payment tracking API (ProcureSense case study prototype)"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's Depends()/Query()/Header() defaults are the framework's idiom, not a bug.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Header", "fastapi.Body"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+filterwarnings = [
+    # Starlette 1.x prefers httpx2 for its TestClient; httpx still works and is what we pin.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated:DeprecationWarning",
+]
