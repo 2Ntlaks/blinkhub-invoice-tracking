@@ -60,7 +60,7 @@ Error codes used:
 
 | HTTP | code | When |
 |---|---|---|
-| 401 | `UNAUTHENTICATED` | see section 1 |
+| 401 | `UNAUTHENTICATED` | see section 1 (also: malformed, non-positive or out-of-range ids) |
 | 403 | `FORBIDDEN` | role not allowed |
 | 404 | `NOT_FOUND` | resource missing or not visible to this user |
 | 422 | `VALIDATION_ERROR` | bad field values |
@@ -127,6 +127,8 @@ A flag needs attention only while its invoice can still be paid. Everywhere the 
 `GET /api/flags`, the `flagged=true` filter, `open_flag_count` on invoices, and the dashboard `open_flag_count`.
 Rejecting an invoice does not change its flags (a rejection is not a finding about the flag); they stay
 visible as history in the invoice detail but drop out of the review queue and counts.
+Resolving a flag whose invoice is `REJECTED` or `PAID` returns `409 INVALID_STATUS_TRANSITION`
+(there is no longer a payment decision for the review to inform).
 
 ---
 
