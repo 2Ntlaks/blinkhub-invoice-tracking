@@ -43,3 +43,14 @@ candidate for the coordinator to confirm in the contract.
   SQLAlchemy `before_flush` guard raises `PermissionError` if anything tries.
 - **Lists are computed in Python** (ages, filters, sorts) because ageing depends on "now".
   Fine for the case-study size; at scale, filter in SQL first.
+
+## Known limitations
+
+- **Live PostgreSQL not exercised locally:** Docker is not installed on the dev machine, so
+  automated tests run against SQLite (with `PRAGMA foreign_keys=ON`, portable SQLAlchemy
+  types, `MAX_INT32` id guards, and `<= 500`-character flag messages to match PostgreSQL
+  constraints).
+- **Mid-submission rollback on flag-write failure not covered by a dedicated HTTP test:**
+  `submit_invoice` commits once after creating the invoice, audit events, and flags, so any
+  error rolls back the transaction; an automated test for a mid-flight flag failure was
+  omitted to avoid invasive mocking.
