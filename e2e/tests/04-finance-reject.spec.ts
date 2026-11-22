@@ -23,4 +23,9 @@ test("finance rejects INV008 with a reason the supplier can read", async ({ page
   await expect(page.getByTestId("status-badge").first()).toContainText(/rejected/i);
   await expect(page.getByTestId("rejection-reason")).toContainText("INV002");
   await expect(page.getByTestId("flags-panel")).toHaveCount(0);
+
+  // Contract 3.5: flags on a rejected invoice are history, not open review work. INV006's two flags
+  // were cleared in journey 03 and INV008 is now rejected, so nothing is left to review.
+  await openAs(page, USERS.manager, "/dashboard");
+  await expect(page.getByTestId("kpi-open-flags-value")).toContainText("0");
 });

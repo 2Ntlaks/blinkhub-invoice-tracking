@@ -33,8 +33,8 @@ test("supplier submits an invoice against its own PO; a repeated number is refus
 
 test("an inactive supplier is told it cannot submit", async ({ page }) => {
   await openAs(page, USERS.sisonke, "/submit");
-  await expect(
-    page.getByTestId("supplier-inactive-notice").or(page.getByTestId("no-po-notice")),
-  ).toBeVisible();
+  // Contract: GET /api/users exposes supplier_status, so the UI can explain this up front
+  // (the API also refuses with 422 SUPPLIER_INACTIVE).
+  await expect(page.getByTestId("supplier-inactive-notice")).toBeVisible();
   await expect(page.getByTestId("btn-submit-invoice")).toHaveCount(0);
 });
