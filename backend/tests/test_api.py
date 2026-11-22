@@ -503,15 +503,53 @@ class TestLifecycle:
         assert resolve(client, 999, "CLEARED").status_code == 404
 
     def test_rejecting_frees_the_po_and_drops_out_of_dashboard(self, client):
+        inv6_flags = flags_of(client, "INV006")
+        assert len(inv6_flags) == 2
+
         client.post("/api/invoices/6/reject", json={"reason": "Duplicate of INV001."}, headers=FINANCE)
         po1 = client.get("/api/purchase-orders", headers=FINANCE).json()[0]
         assert (po1["invoiced_amount"], po1["remaining_amount"]) == (85000.0, 0.0)
+
+        # Contract 3.5: all four open-review views agree once INV006 is rejected.
         kpis = client.get("/api/dashboard", headers=FINANCE).json()["kpis"]
         assert (kpis["outstanding_count"], kpis["outstanding_amount"], kpis["open_flag_count"]) == (
             4,
             870000.0,
             2,
         )
+        all_flags = client.get("/api/flags", headers=FINANCE).json()
+        open_flags = client.get("/api/flags?status=OPEN", headers=FINANCE).json()
+        assert len(all_flags) == 2 and {f["invoice_number"] for f in all_flags} == {"INV008"}
+        assert len(open_flags) == 2 and {f["invoice_number"] for f in open_flags} == {"INV008"}
+
+        flagged_numbers = [
+            i["invoice_number"] for i in client.get("/api/invoices?flagged=true", headers=FINANCE).json()
+        ]
+        assert flagged_numbers == ["INV008"]
+
+        inv6 = client.get("/api/invoices/6", headers=FINANCE).json()
+        assert inv6["open_flag_count"] == 0
+        # Flags stay visible as history in invoice detail, untouched.
+        assert len(inv6["flags"]) == 2
+        assert all(f["status"] == "OPEN" for f in inv6["flags"])
+
+        # Resolving a flag on a REJECTED invoice is refused with 409 INVALID_STATUS_TRANSITION.
+        res = resolve(client, inv6_flags[0]["id"], "CLEARED")
+        assert (res.status_code, error_code(res)) == (409, "INVALID_STATUS_TRANSITION")
+
+    def test_resolving_flag_on_paid_invoice_returns_409_invalid_transition(self, client):
+        first, second = flags_of(client, "INV006")
+        resolve(client, first["id"], "CLEARED")
+        resolve(client, second["id"], "CLEARED")
+        assert client.post("/api/invoices/6/approve", headers=FINANCE).status_code == 200
+        assert (
+            client.post(
+                "/api/invoices/6/pay", json={"payment_reference": "EFT-6"}, headers=FINANCE
+            ).status_code
+            == 200
+        )
+        res = resolve(client, first["id"], "CONFIRMED")
+        assert (res.status_code, error_code(res)) == (409, "INVALID_STATUS_TRANSITION")
 
     def test_audit_events_are_insert_only(self, client):
         session = client.app.state.session_factory()

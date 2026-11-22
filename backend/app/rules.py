@@ -430,11 +430,33 @@ def check_approval_gate(flag_statuses: Iterable[FlagStatus]) -> Rejection | None
     return Rejection(ErrorCode.FLAGS_UNRESOLVED, "Cannot approve yet: " + "; ".join(parts) + ".")
 
 
-def check_flag_resolvable(status: FlagStatus) -> Rejection | None:
-    """A flag is reviewed once. Re-deciding would silently rewrite the review history."""
-    if status == FlagStatus.OPEN:
-        return None
-    return Rejection(ErrorCode.FLAG_ALREADY_RESOLVED, f"This flag was already reviewed ({status}).")
+def is_open_review_flag(flag_status: FlagStatus, invoice_status: InvoiceStatus) -> bool:
+    """Whether a flag still counts as open review work (contract section 3.5).
+
+    A flag needs attention only while it is OPEN and its invoice can still be paid
+    (SUBMITTED or APPROVED). Once an invoice is REJECTED or PAID there is no payment
+    decision left to inform, so its flags stay visible in the invoice's history but
+    drop out of review queues, filters, and open-flag counts.
+    """
+    return flag_status == FlagStatus.OPEN and invoice_status in OPEN_STATUSES
+
+
+def check_flag_resolvable(flag_status: FlagStatus, invoice_status: InvoiceStatus) -> Rejection | None:
+    """A flag can be reviewed only while its invoice is open and the flag is still OPEN.
+
+    Once an invoice is REJECTED or PAID there is no payment decision left for a flag
+    review to inform (contract section 3.5). While the invoice is still open, a flag is
+    reviewed once so earlier decisions are never silently rewritten.
+    """
+    if invoice_status not in OPEN_STATUSES:
+        return Rejection(
+            ErrorCode.INVALID_STATUS_TRANSITION,
+            f"Cannot resolve a flag on an invoice that is {invoice_status}; "
+            "it must be SUBMITTED or APPROVED.",
+        )
+    if flag_status != FlagStatus.OPEN:
+        return Rejection(ErrorCode.FLAG_ALREADY_RESOLVED, f"This flag was already reviewed ({flag_status}).")
+    return None
 
 
 # ---------------------------------------------------------------------------

@@ -90,7 +90,7 @@ def get_visible_invoice(session: Session, user: User, invoice_id: int) -> Invoic
 
 
 def open_flag_count(invoice: Invoice) -> int:
-    return sum(1 for f in invoice.flags if f.status == FlagStatus.OPEN)
+    return sum(1 for f in invoice.flags if rules.is_open_review_flag(f.status, invoice.status))
 
 
 # ---------------------------------------------------------------------------
@@ -434,7 +434,13 @@ def list_flags(session: Session, status: FlagStatus | None) -> list[FlagOut]:
     )
     if status is not None:
         query = query.where(Flag.status == status)
-    return [flag_out(f) for f in session.scalars(query)]
+    # Contract section 3.5: OPEN flags on REJECTED/PAID invoices are history, not open review work.
+    flags = [
+        f
+        for f in session.scalars(query)
+        if f.status != FlagStatus.OPEN or rules.is_open_review_flag(f.status, f.invoice.status)
+    ]
+    return [flag_out(f) for f in flags]
 
 
 def resolve_flag(
@@ -443,7 +449,7 @@ def resolve_flag(
     flag = session.get(Flag, flag_id) if is_valid_id(flag_id) else None
     if flag is None:
         raise AppError(ErrorCode.NOT_FOUND, f"Flag {flag_id} not found.")
-    rejection = rules.check_flag_resolvable(flag.status)
+    rejection = rules.check_flag_resolvable(flag.status, flag.invoice.status)
     if rejection is not None:
         raise AppError.from_rejection(rejection)
     flag.status = outcome
@@ -472,9 +478,8 @@ def build_dashboard(session: Session, user: User, now: datetime, payment_terms_d
     paid_days = [
         i.days_outstanding for i in items if i.status == InvoiceStatus.PAID and i.days_outstanding is not None
     ]
-    # Count flags still waiting for a decision on invoices still in play. A flag left
-    # OPEN on an invoice that has since been rejected needs no action from anyone.
-    open_flags = sum(open_flag_count(i) for i in invoices if i.status != InvoiceStatus.REJECTED)
+    # Contract section 3.5: open_flag_count already counts only OPEN flags on SUBMITTED/APPROVED invoices.
+    open_flags = sum(open_flag_count(i) for i in invoices)
 
     # Spend = committed PO value (assumption A6), which is the case study's R4,027,000.
     total_spend = sum((po.amount for po in pos), Decimal("0"))

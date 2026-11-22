@@ -339,10 +339,31 @@ class TestApprovalGate:
         assert rejection.code == ErrorCode.FLAGS_UNRESOLVED
         assert "reject instead" in rejection.message
 
-    def test_flag_can_be_resolved_only_once(self):
-        assert rules.check_flag_resolvable(FlagStatus.OPEN) is None
-        for done in (FlagStatus.CLEARED, FlagStatus.CONFIRMED):
-            assert rules.check_flag_resolvable(done).code == ErrorCode.FLAG_ALREADY_RESOLVED
+    def test_flag_can_be_resolved_only_once_and_only_on_open_invoices(self):
+        for open_status in (InvoiceStatus.SUBMITTED, InvoiceStatus.APPROVED):
+            assert rules.check_flag_resolvable(FlagStatus.OPEN, open_status) is None
+            for done in (FlagStatus.CLEARED, FlagStatus.CONFIRMED):
+                assert rules.check_flag_resolvable(done, open_status).code == ErrorCode.FLAG_ALREADY_RESOLVED
+        for closed_status in (InvoiceStatus.REJECTED, InvoiceStatus.PAID):
+            for flag_status in (FlagStatus.OPEN, FlagStatus.CLEARED, FlagStatus.CONFIRMED):
+                assert (
+                    rules.check_flag_resolvable(flag_status, closed_status).code
+                    == ErrorCode.INVALID_STATUS_TRANSITION
+                )
+
+    @pytest.mark.parametrize(
+        ("flag_status", "invoice_status", "expected"),
+        [
+            (FlagStatus.OPEN, InvoiceStatus.SUBMITTED, True),
+            (FlagStatus.OPEN, InvoiceStatus.APPROVED, True),
+            (FlagStatus.OPEN, InvoiceStatus.REJECTED, False),
+            (FlagStatus.OPEN, InvoiceStatus.PAID, False),
+            (FlagStatus.CLEARED, InvoiceStatus.SUBMITTED, False),
+            (FlagStatus.CONFIRMED, InvoiceStatus.SUBMITTED, False),
+        ],
+    )
+    def test_is_open_review_flag(self, flag_status, invoice_status, expected):
+        assert rules.is_open_review_flag(flag_status, invoice_status) is expected
 
 
 # ---------------------------------------------------------------------------
