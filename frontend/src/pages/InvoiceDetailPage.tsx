@@ -165,7 +165,7 @@ function Item({ label, children }: { label: string; children: ReactNode }) {
 
 function SupplierStatusNote({ inv }: { inv: InvoiceDetail }) {
   const text: Record<string, string> = {
-    SUBMITTED: "BlinkHub finance has received your invoice and is checking it.",
+    SUBMITTED: "MICS finance has received your invoice and is checking it.",
     APPROVED: "Your invoice is approved and scheduled for payment.",
     PAID: "This invoice has been paid.",
     REJECTED: "This invoice was rejected. You can submit a corrected invoice, using the same invoice number if needed.",

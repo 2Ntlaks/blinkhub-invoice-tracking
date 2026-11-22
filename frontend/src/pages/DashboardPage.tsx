@@ -24,7 +24,7 @@ export function DashboardPage() {
   if (q.loading && !q.data) {
     return (
       <>
-        <PageTitle kicker="BlinkHub finance" title="Payments dashboard" />
+        <PageTitle kicker="MICS finance" title="Payments dashboard" />
         <Card>
           <Loading label="Adding up the ledger" />
         </Card>
@@ -34,7 +34,7 @@ export function DashboardPage() {
   if (q.error || !q.data) {
     return (
       <>
-        <PageTitle kicker="BlinkHub finance" title="Payments dashboard" />
+        <PageTitle kicker="MICS finance" title="Payments dashboard" />
         <Card>
           <ErrorState message={q.error ?? "No data."} onRetry={q.reload} />
         </Card>
@@ -47,7 +47,7 @@ export function DashboardPage() {
   return (
     <div data-testid="dashboard">
       <PageTitle
-        kicker="BlinkHub finance"
+        kicker="MICS finance"
         title="Payments dashboard"
         right={
           <p className="text-sm text-muted" data-testid="dashboard-as-of">

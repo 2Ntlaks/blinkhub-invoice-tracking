@@ -95,7 +95,7 @@ export function SubmitInvoicePage() {
         invoice_date: form.invoice_date,
         ...(desc ? { description: desc } : {}),
       });
-      toast.show(`Invoice ${created.invoice_number} submitted to BlinkHub finance.`);
+      toast.show(`Invoice ${created.invoice_number} submitted to MICS finance.`);
       navigate(`/invoices/${created.id}`);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -131,7 +131,7 @@ export function SubmitInvoicePage() {
       <PageTitle kicker="Supplier portal" title="Submit an invoice" />
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <Card className="rise">
-          <CardHeader title={`Invoice from ${supplierName}`} subtitle="Every invoice must be linked to one of your BlinkHub purchase orders." />
+          <CardHeader title={`Invoice from ${supplierName}`} subtitle="Every invoice must be linked to one of your MICS purchase orders." />
           {knownInactive ? (
             // Contract 4 (User.supplier_status): tell an inactive supplier up front, before any typing.
             <div className="px-5 py-6">
@@ -146,9 +146,9 @@ export function SubmitInvoicePage() {
             // reasons a supplier can have no POs (see frontend/NOTES.md item 1).
             <div className="px-5 py-6" data-testid="no-po-notice">
               <Notice tone="amber" title="You cannot submit an invoice right now">
-                <p>There are no BlinkHub purchase orders on your supplier account. Every invoice must be matched to a purchase order, so there is nothing to invoice against yet.</p>
+                <p>There are no MICS purchase orders on your supplier account. Every invoice must be matched to a purchase order, so there is nothing to invoice against yet.</p>
                 <p className="mt-1">
-                  This can also mean your supplier account is not active on the BlinkHub supplier register. Please contact BlinkHub procurement to check
+                  This can also mean your supplier account is not active on the MICS supplier register. Please contact MICS procurement to check
                   your account status or to request a purchase order.
                 </p>
               </Notice>
@@ -254,14 +254,14 @@ export function SubmitInvoicePage() {
           <Card className="px-4 py-4">
             <h3 className="font-semibold">What happens next</h3>
             <ol className="mt-2 list-decimal space-y-1.5 pl-5">
-              <li>BlinkHub finance checks the invoice against your purchase order.</li>
+              <li>MICS finance checks the invoice against your purchase order.</li>
               <li>Once approved, it is scheduled for payment.</li>
               <li>You can follow every step on the invoice page.</li>
             </ol>
           </Card>
           <Card className="px-4 py-4">
             <h3 className="font-semibold">Payment terms</h3>
-            <p className="mt-1">BlinkHub aims to pay within 30 days of submission.</p>
+            <p className="mt-1">MICS aims to pay within 30 days of submission.</p>
           </Card>
         </aside>
       </div>
@@ -278,11 +278,11 @@ function InactiveNotice({ serverMessage }: { serverMessage?: string }) {
     <Notice tone="red" title="Your supplier account is inactive" testId="supplier-inactive-notice">
       {serverMessage && <p className="mb-1">{serverMessage}</p>}
       <p>
-        Your supplier account is currently inactive on the BlinkHub supplier register, so new invoices cannot be submitted. This is an account
+        Your supplier account is currently inactive on the MICS supplier register, so new invoices cannot be submitted. This is an account
         setting, not a problem with any of your invoices.
       </p>
       <p className="mt-1">
-        Please contact the BlinkHub procurement office to reactivate your account. Your existing invoices are still listed under{" "}
+        Please contact the MICS procurement office to reactivate your account. Your existing invoices are still listed under{" "}
         <Link to="/my-invoices" className="underline">
           My invoices
         </Link>

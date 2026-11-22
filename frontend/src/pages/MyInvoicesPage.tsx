@@ -32,7 +32,7 @@ export function MyInvoicesPage() {
       {inactive && (
         <div className="rise mb-4">
           <Notice tone="amber" title="Your supplier account is inactive" testId="my-invoices-inactive-notice">
-            New invoices cannot be submitted while your account is inactive on the BlinkHub supplier register. Please contact the BlinkHub
+            New invoices cannot be submitted while your account is inactive on the MICS supplier register. Please contact the MICS
             procurement office to reactivate it. You can still follow your existing invoices below.
           </Notice>
         </div>
