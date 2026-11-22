@@ -1,0 +1,5 @@
+# Shell scripts and container files must keep LF endings (bash/Docker break on CRLF)
+*.sh text eol=lf
+*.Dockerfile text eol=lf
+Dockerfile text eol=lf
+docker/nginx.conf text eol=lf
