@@ -12,7 +12,8 @@ from collections.abc import Callable, Iterator
 from datetime import datetime
 
 from fastapi import Depends, Header, Request
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.orm import Session, selectinload
 
 from app.db import is_valid_id
 from app.enums import ErrorCode, Role
@@ -46,7 +47,9 @@ def current_user(
     user_id = int(raw)
     if not is_valid_id(user_id):
         raise AppError(ErrorCode.UNAUTHENTICATED, f"Unknown user id {raw}.")
-    user = session.get(User, user_id)
+    user = session.scalars(
+        select(User).options(selectinload(User.supplier)).where(User.id == user_id)
+    ).first()
     if user is None:
         raise AppError(ErrorCode.UNAUTHENTICATED, f"Unknown user id {raw}.")
     return user

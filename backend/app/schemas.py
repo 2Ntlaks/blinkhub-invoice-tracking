@@ -53,6 +53,7 @@ class UserOut(Out):
     name: str
     role: Role
     supplier_id: int | None
+    supplier_status: SupplierStatus | None
 
 
 class SupplierOut(Out):

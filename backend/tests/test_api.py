@@ -53,15 +53,29 @@ class TestSeed:
     def test_users_have_stable_ids(self, client):
         users = client.get("/api/users").json()
         assert [u["id"] for u in users] == list(range(1, 11))
-        assert users[0] == {"id": 1, "name": "Thandi Nkosi", "role": "FINANCE", "supplier_id": None}
+        assert users[0] == {
+            "id": 1,
+            "name": "Thandi Nkosi",
+            "role": "FINANCE",
+            "supplier_id": None,
+            "supplier_status": None,
+        }
         assert users[1]["role"] == "MANAGER"
+        assert users[1]["supplier_status"] is None
         assert users[2] == {
             "id": 3,
             "name": "Ubuntu Cleaning (supplier portal)",
             "role": "SUPPLIER",
             "supplier_id": 1,
+            "supplier_status": "ACTIVE",
         }
-        assert users[9]["name"] == "Sisonke Trading (supplier portal)"
+        assert users[9] == {
+            "id": 10,
+            "name": "Sisonke Trading (supplier portal)",
+            "role": "SUPPLIER",
+            "supplier_id": 8,
+            "supplier_status": "INACTIVE",
+        }
 
     def test_suppliers_in_case_study_order(self, client):
         suppliers = client.get("/api/suppliers", headers=FINANCE).json()
@@ -204,7 +218,17 @@ class TestAuth:
             assert invs.status_code == 200 and invs.json() == []
 
     def test_me(self, client):
-        assert client.get("/api/me", headers=UBUNTU).json()["supplier_id"] == 1
+        finance = client.get("/api/me", headers=FINANCE).json()
+        assert finance["supplier_id"] is None
+        assert finance["supplier_status"] is None
+
+        ubuntu = client.get("/api/me", headers=UBUNTU).json()
+        assert ubuntu["supplier_id"] == 1
+        assert ubuntu["supplier_status"] == "ACTIVE"
+
+        sisonke = client.get("/api/me", headers=SISONKE).json()
+        assert sisonke["supplier_id"] == 8
+        assert sisonke["supplier_status"] == "INACTIVE"
 
     @pytest.mark.parametrize(
         ("method", "path", "headers"),

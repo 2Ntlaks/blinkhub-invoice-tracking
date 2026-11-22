@@ -42,6 +42,7 @@ from app.schemas import (
     PurchaseOrderOut,
     SmmeShareOut,
     SupplierSpendOut,
+    UserOut,
 )
 
 #: Actor names for events no person performed.
@@ -96,6 +97,16 @@ def open_flag_count(invoice: Invoice) -> int:
 # ---------------------------------------------------------------------------
 # Shaping responses
 # ---------------------------------------------------------------------------
+
+
+def user_out(user: User) -> UserOut:
+    return UserOut(
+        id=user.id,
+        name=user.name,
+        role=user.role,
+        supplier_id=user.supplier_id,
+        supplier_status=user.supplier.status if user.supplier is not None else None,
+    )
 
 
 def invoice_out(invoice: Invoice, viewer: User, now: datetime) -> InvoiceOut:
