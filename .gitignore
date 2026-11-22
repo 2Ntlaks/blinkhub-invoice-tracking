@@ -12,3 +12,9 @@ dist/
 
 # Case study brief from ProcureSense - keep out of a public repo
 Case study.pdf
+
+# Rendered video (72 MB) - keep out of git
+BlinkHub-explainer.mp4
+
+# Personal study material - not part of the submission (has its own git repo)
+explainer-video/

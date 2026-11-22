@@ -35,8 +35,9 @@ silent, the choice below is an **assumption**, and the presentation should say s
   (the oldest Ubuntu Cleaning invoice is 47 days). We treat it as the motivating story,
   not a data point.
 - INV006 is Ubuntu Cleaning's only open invoice and it is flagged. A flag must not quietly
-  freeze payment to a struggling SMME, so flagged-and-overdue SMME invoices sort to the top
-  of the finance attention list.
+  freeze payment to a struggling SMME, so every overdue or flagged invoice appears on the
+  finance attention list (oldest first, SMMEs first on ties), and approval is blocked only
+  until a finance officer reviews the flag.
 
 ## 5. Synthetic data
 None yet. Any synthetic record added later must have `is_synthetic = true` and be shown
