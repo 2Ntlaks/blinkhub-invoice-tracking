@@ -12,10 +12,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Runners are pinned to Ubuntu 24.04: Playwright 1.57 (used by e2e/) cannot install Chromium on
+# ubuntu-latest, which moved to Ubuntu 26.04. Bump Playwright before moving to a newer image.
 jobs:
   backend:
     name: Backend (ruff + pytest)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: backend
@@ -46,7 +48,7 @@ jobs:
 
   frontend:
     name: Frontend (typecheck + lint + build)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
@@ -74,7 +76,7 @@ jobs:
   e2e:
     name: E2E (Playwright with video)
     needs: [backend, frontend]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
