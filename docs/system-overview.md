@@ -84,4 +84,4 @@ Moving this prototype into production at MICS would require:
 * **Cloud deployment** for shared access across MICS.
 * **More Problem 6 rules**, such as flagging payments just below approval thresholds and bank detail changes before payment.
 
-Technical readers looking for architecture details and setup instructions should see `docs/architecture.md` and `README.md`.
+Technical readers looking for architecture details and setup instructions should see [`docs/architecture.md`](architecture.md) and [`README.md`](../README.md).

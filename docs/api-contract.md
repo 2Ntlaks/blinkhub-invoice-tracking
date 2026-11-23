@@ -200,13 +200,13 @@ For `SUPPLIER` users: `flags` is `[]`, and audit events of type `FLAG_*` are omi
 }
 ```
 `status`: `OPEN | CLEARED | CONFIRMED`. `CLEARED` = reviewed, legitimate. `CONFIRMED` = reviewed, real problem (invoice should then be rejected).
-`resolved_by`: `{ "id": 3, "name": "Thandi Nkosi" }` or `null`.
+`resolved_by`: `{ "id": 1, "name": "Thandi Nkosi" }` or `null`.
 
 ### AuditEvent
 ```json
 {
   "id": 10, "at": "2026-11-22T10:00:00Z",
-  "actor": { "id": 3, "name": "Thandi Nkosi", "role": "FINANCE" },
+  "actor": { "id": 1, "name": "Thandi Nkosi", "role": "FINANCE" },
   "action": "APPROVED",
   "from_status": "SUBMITTED", "to_status": "APPROVED", "note": "Checked against delivery note"
 }
@@ -296,7 +296,7 @@ Seeded legacy events use actor `{ "id": 0, "name": "System import", "role": "SYS
 | `CORS_ORIGINS` | `http://localhost:5173` | Comma-separated. |
 
 - Reset to the exact case-study state: `python -m app.seed --reset` (from `backend/`). This drops and
-  recreates all tables, then seeds. Run it right before the demo so "days outstanding" match the brief.
+  recreates all tables, then seeds. Run it whenever you want "days outstanding" to match the case-study figures exactly.
 - The seed must create flags by running the **same rule functions** used by `POST /api/invoices`,
   in invoice-number order. Flags are never hard-coded in the seed.
 - E2E tests start the backend with a throwaway SQLite file (`DATABASE_URL=sqlite:///./e2e.db`) and reset it first.
@@ -314,5 +314,5 @@ Supplier ids follow the case-study register order: 1 Ubuntu Cleaning, 2 Prime Fa
 PO ids 1..12 = PO001..PO012. Invoice ids 1..8 = INV001..INV008.
 
 ### UI wording rule
-Flags are shown as **"Needs review"** with the rule name in plain words. Never use the words
-"fraud", "suspicious" or "fraudulent" anywhere in the UI or API messages.
+Flags are shown as **"Needs review"** with the rule name in plain words. Use neutral review
+language everywhere in the UI and API messages: a flag is a question for finance, never an accusation.

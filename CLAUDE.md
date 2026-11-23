@@ -1,7 +1,6 @@
 # BlinkHub Invoice & Payment Tracking (ProcureSense case study)
 
 Prototype for the ProcureSense "BlinkHub Procurement Innovation Challenge", Path A, Option 3.
-The case study PDF is `Case study.pdf`. Presentation and live demo: Monday 23 November 2026.
 
 ## Read first
 - `docs/api-contract.md` - the API contract. Single source of truth. Change it before changing code.
@@ -20,7 +19,7 @@ Do not edit another owner's folder.
 - Every status change writes an insert-only audit event.
 - Money is `Decimal` / `NUMERIC(14,2)` in the backend, never float arithmetic.
 - `DATABASE_URL` selects the database: PostgreSQL in Docker Compose, SQLite file by default
-  for local runs and tests (Docker is not installed on the dev machine).
+  for local runs and tests.
 - Comment non-obvious decisions; the author must be able to defend every line of business logic.
 - Commit small and often with clear messages.
 

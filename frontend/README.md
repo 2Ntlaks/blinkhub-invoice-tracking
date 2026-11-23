@@ -1,7 +1,7 @@
 # BlinkHub frontend
 
 React 19 + Vite + TypeScript (strict) + Tailwind CSS v4 + Recharts + React Router.
-It talks to the FastAPI backend only through `/api`, following `../docs/api-contract.md`.
+It talks to the FastAPI backend only through `/api`, following [`docs/api-contract.md`](../docs/api-contract.md).
 
 ## Install and run
 
@@ -16,8 +16,8 @@ The backend must be running (from `../backend`):
 .venv/Scripts/python -m uvicorn app.main:app --port 8000
 ```
 
-**Port 8000 busy?** On the dev laptop a Windows service (`DashClientService`) holds port 8000,
-so uvicorn cannot bind to it. Run the backend on another port and point the proxy at it:
+**Port 8000 busy?** Some Windows machines run a system service on port 8000,
+which prevents Uvicorn from binding to it. Run the backend on another port and point the proxy at it:
 
 ```bash
 .venv/Scripts/python -m uvicorn app.main:app --port 8001        # in ../backend

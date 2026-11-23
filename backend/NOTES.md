@@ -1,8 +1,7 @@
 # Backend notes: contract ambiguities and the choices made
 
-The API contract (`docs/api-contract.md`) was not changed. Where it was silent or
-ambiguous, the backend took the most conservative reading below. Each one is a
-candidate for the coordinator to confirm in the contract.
+Where the API contract ([`docs/api-contract.md`](../docs/api-contract.md)) was silent or
+ambiguous, the backend took the most conservative reading below.
 
 | # | Topic | Contract says | Backend does | Why |
 |---|---|---|---|---|
@@ -27,10 +26,9 @@ candidate for the coordinator to confirm in the contract.
 
 ## Other things worth knowing
 
-- **Port 8000 is taken on the dev laptop** by a Windows service (`RtDashService` /
-  DashClientService via http.sys, PID 4 listening on `[::]:8000`). Uvicorn cannot bind it
-  (`WinError 10013`). Run the backend on another port (for example `--port 8001`) and point
-  the frontend's `API_PROXY_TARGET` at it, or stop that service before the demo.
+- **Port 8000 conflicts on Windows:** Some Windows machines reserve port 8000 via
+  `http.sys` (`WinError 10013` when starting Uvicorn). Run the backend on another port
+  (for example `--port 8001`) and point the frontend's `API_PROXY_TARGET` at it.
 - **No unique index on invoice numbers.** A number may be reused after rejection and
   partial unique indexes are not portable between SQLite and PostgreSQL, so the check is in
   `rules.find_exact_duplicate`. Two simultaneous submissions of the same number could both
@@ -46,10 +44,10 @@ candidate for the coordinator to confirm in the contract.
 
 ## Known limitations
 
-- **Live PostgreSQL not exercised locally:** Docker is not installed on the dev machine, so
-  automated tests run against SQLite (with `PRAGMA foreign_keys=ON`, portable SQLAlchemy
-  types, `MAX_INT32` id guards, and `<= 500`-character flag messages to match PostgreSQL
-  constraints).
+- **Automated tests run against SQLite:** `pytest` uses temporary SQLite databases (with
+  `PRAGMA foreign_keys=ON`, portable SQLAlchemy types, `MAX_INT32` id guards, and
+  `<= 500`-character flag messages to match PostgreSQL constraints). The PostgreSQL
+  container stack is exercised via `docker compose up --build`.
 - **Mid-submission rollback on flag-write failure not covered by a dedicated HTTP test:**
   `submit_invoice` commits once after creating the invoice, audit events, and flags, so any
   error rolls back the transaction; an automated test for a mid-flight flag failure was

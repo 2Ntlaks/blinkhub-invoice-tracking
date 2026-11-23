@@ -1,6 +1,6 @@
 # BlinkHub backend
 
-FastAPI + SQLAlchemy 2 + Pydantic v2. The API contract is `../docs/api-contract.md`;
+FastAPI + SQLAlchemy 2 + Pydantic v2. The API contract is [`docs/api-contract.md`](../docs/api-contract.md);
 choices where the contract was silent are in [NOTES.md](NOTES.md).
 
 Where things live:
@@ -39,10 +39,10 @@ python -m venv .venv
 API docs: `http://localhost:8000/docs`. On first start the database (`blinkhub.db`) is
 created and seeded automatically.
 
-If port 8000 is taken (on the dev laptop a Windows service holds it), use `--port 8001`
-and start the frontend with `API_PROXY_TARGET=http://localhost:8001`.
+If port 8000 is already in use (some Windows machines run a system service on port 8000),
+use `--port 8001` and start the frontend with `API_PROXY_TARGET=http://localhost:8001`.
 
-## Reset to the exact case-study state (do this right before the demo)
+## Reset to the exact case-study state
 
 ```bash
 .venv/Scripts/python -m app.seed --reset      # Git Bash

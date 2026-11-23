@@ -5,9 +5,9 @@ import tailwindcss from "@tailwindcss/vite";
 // The dev server proxies /api to the FastAPI backend so the browser only ever
 // talks to one origin (no CORS needed in development).
 //
-// Default target is http://localhost:8000 (the contract). API_PROXY_TARGET overrides it,
-// because on the dev laptop a Windows service (DashClientService, via http.sys) already
-// holds port 8000. Example: API_PROXY_TARGET=http://localhost:8001 npm run dev
+// Default target is http://localhost:8000 (the contract). API_PROXY_TARGET overrides it
+// when port 8000 is already in use on the host machine.
+// Example: API_PROXY_TARGET=http://localhost:8001 npm run dev
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, ".", "");
   const target = env.API_PROXY_TARGET || "http://localhost:8000";

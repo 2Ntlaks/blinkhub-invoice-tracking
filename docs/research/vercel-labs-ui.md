@@ -43,16 +43,15 @@ to build the next generation of user interfaces". It is not a styled component k
 | Flag review | Dialog, Textarea | Same as shadcn. |
 | Dashboard | Nothing | KPI tiles and charts stay Tailwind and Recharts. |
 
-## 4. Compared with plain shadcn/ui for tomorrow
+## 4. Compared with plain Tailwind and established libraries for a time-boxed prototype
 
-- **Setup time**: shadcn copies **already styled** Tailwind components into the project, so they
-  look finished on first render. UI SDK gives behaviour only, so every part needs styling by hand
-  (or the generic `web.css`). That is slower for a one day build.
-- **Risk**: UI SDK is a four week old beta with daily fixes and a changing API. shadcn (built on
-  Radix or Base UI) is stable and widely documented. A broken dropdown during a live demo costs
-  more than anything this library adds.
-- **What it adds**: strong accessibility, a ready Timeline and an "agent friendly" story.
-  None is a case study requirement.
+- **Setup time**: UI SDK gives behaviour only, so every component still needs styling by hand
+  (or the generic `web.css`), which adds overhead to a short prototype build.
+- **Risk**: UI SDK is a four-week-old beta with daily fixes and a changing API. Hand-built
+  Tailwind components (or mature libraries built on Radix/Base UI) are predictable and carry
+  less demo risk.
+- **What it adds**: strong accessibility, a ready Timeline and an "agent-friendly" story.
+  None is a case-study requirement.
 
 ## 5. Licence
 
@@ -60,11 +59,10 @@ Apache License 2.0. Free to use commercially. If we copy its source code into ou
 keep the licence text and mark our changes. Using it from npm needs no attribution in the app.
 The beta terms also apply while it is in beta. There is no NOTICE file.
 
-## Recommendation
+## Decision
 
-**Do not use it for tomorrow. Mention it as a "next step" only.** Use plain shadcn/ui with
-Tailwind and Recharts as planned. Build the audit timeline as a simple styled list.
-
-Suggested sentence for the "future work" slide: "Once UI SDK leaves beta, its Timeline, Field
-and Alert Dialog behaviours could replace our hand built versions to improve keyboard and screen
-reader accessibility for suppliers and finance staff."
+**Not adopted for the prototype; kept as a future accessibility option.** The prototype uses
+small hand-built Tailwind components in [`frontend/src/components/ui.tsx`](../../frontend/src/components/ui.tsx)
+with Recharts for charts and a simple styled list for the audit timeline. Once UI SDK leaves beta,
+its Timeline, Field, and Alert Dialog behaviours could replace the hand-built versions to improve
+keyboard and screen-reader accessibility for suppliers and finance staff.

@@ -1,8 +1,8 @@
 # Frontend notes: contract gaps and the choices made
 
-Where the contract (`docs/api-contract.md`) was silent or ambiguous, the frontend made the
-conservative choice below. Items 1 and 2 are now **resolved by the contract**; the rest are for the
-coordinator to confirm.
+Where the API contract ([`docs/api-contract.md`](../docs/api-contract.md)) was silent or
+ambiguous, the frontend made the conservative choices below. Items 1 and 2 were later added
+to the contract directly.
 
 ## 1. A supplier's ACTIVE / INACTIVE status (RESOLVED by the contract)
 Resolved: the contract now gives `User.supplier_status` (`ACTIVE | INACTIVE` for supplier users, `null`
@@ -30,11 +30,10 @@ the page refreshes.
 The contract says `note: string` for flag resolution. The UI requires a non-empty trimmed note;
 the backend enforces min 1 character.
 
-## 4. Port 8000 on the dev laptop
-Windows `DashClientService` holds `http://+:8000/` through http.sys, so uvicorn cannot bind to
-port 8000 on this machine (WinError 10013). The Vite proxy target defaults to the contract's
-`http://localhost:8000` but can be overridden with `API_PROXY_TARGET` (see README). For the demo
-either stop that service (as administrator) or run the backend on 8001 with the override.
+## 4. Overriding the backend port
+The Vite proxy target defaults to the contract's `http://localhost:8000`, and can be overridden
+with `API_PROXY_TARGET` (see [README.md](README.md)) if port 8000 is already in use on the host
+machine.
 
 ## 5. Small display choices
 - Money is only displayed, never computed, except two display-only sums: the queue footer total and
