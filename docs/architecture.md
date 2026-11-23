@@ -89,14 +89,15 @@ erDiagram
         int related_invoice_id FK
         string status "OPEN | CLEARED | CONFIRMED"
         datetime raised_at
-        int resolved_by FK
+        int resolved_by_id FK
         datetime resolved_at
         string resolution_note
     }
     AUDIT_EVENT {
         int id PK
         int invoice_id FK
-        int actor_id FK "null = System import"
+        int actor_user_id FK "null when system_actor is set"
+        string system_actor "System import | Automatic check"
         string action
         string from_status
         string to_status
