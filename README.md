@@ -169,6 +169,10 @@ scripts/verify.sh --fast     # everything except the browser journeys
 | End-to-end browser tests | Playwright (`e2e/`) | **5 Playwright browser journeys** exercising manager dashboard, supplier submit + duplicate refusal, inactive supplier block, finance flag review + approve + pay, and finance rejection against the live backend |
 | PostgreSQL container stack | `docker compose up --build` | Verified on a cloud machine running PostgreSQL, FastAPI, and nginx |
 
+### Verification evidence
+
+Independent end-to-end verification recordings (untouched raw Playwright `.webm` captures with SHA-256 checksums, straight H.264 `.mp4` conversions, full-length preview GIFs, and `results.json`) are published in [`docs/verification/README.md`](docs/verification/README.md) and can be reproduced with `scripts/record-evidence.sh`. Continuous integration runs backend checks, frontend checks, and the full Playwright suite with video capture on every pull request and push to `main` via [`.github/workflows/verify.yml`](.github/workflows/verify.yml).
+
 ---
 
 ## Key decisions
